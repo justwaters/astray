@@ -275,6 +275,7 @@ impl App {
           }
           Action::ScheduleLoadSystemView => {
             action_tx.send(Action::LoadSystemView(self.state.get_starting_system()))?;
+            action_tx.send(Action::LoadFleetStatus(self.state.get_fleet_status()))?;
           }
           Action::StartResearch(ref r) => {
             self.state.start_research(r.clone());
@@ -349,6 +350,9 @@ impl App {
           },
           Action::ScheduleLoadShipyardInfo => {
             action_tx.send(Action::LoadShipyardInfo(self.state.get_shipyard_info()))?;
+          },
+          Action::MoveFleet(destination) => {
+            self.state.move_fleet_to(destination);
           },
           _ => {},
         }

@@ -24,6 +24,8 @@ const SHIP_MAX_HP: i32 = 20;
 const ENEMY_MAX_HP: i32 = 40;
 /// Damage the enemy ship deals to the player's active ship each tick.
 const ENEMY_DAMAGE_PER_TICK: i32 = 3;
+/// In-game ticks it takes a fleet to travel one hop (one body index) in the system.
+const TRAVEL_TICKS_PER_HOP: u32 = 5;
 
 /// A snapshot of shipyard and combat state for the UI.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -42,6 +44,17 @@ pub struct ShipyardInfo {
     pub ship_max_hp: i32,
 }
 
+/// A snapshot of fleet position and movement state for the UI.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct FleetStatus {
+    pub has_ship: bool,
+    pub fleet_location_name: String,
+    pub enemy_location_name: String,
+    pub at_enemy_location: bool,
+    pub destination_name: Option<String>,
+    pub travel_ticks_remaining: Option<u32>,
+}
+
 pub struct GameState {
     systems: Vec<SolarSystem>,
     capital: Planet,
@@ -58,6 +71,11 @@ pub struct GameState {
     active_ship_hp: Option<i32>,
     active_ship_weapon_damage: Option<u32>,
     enemy_hp: i32,
+    /// Index into the system's body list (0 = star, 1..=n = planets by orbit order).
+    fleet_location: usize,
+    enemy_location: usize,
+    fleet_destination: Option<usize>,
+    fleet_travel_ticks_remaining: Option<u32>,
 }
 
 impl Default for GameState {
@@ -71,6 +89,15 @@ impl Default for GameState {
                 break
             }
         }
+
+        // Body indices match the System View's own scheme: 0 = star, 1..=n = planets
+        // in orbit order. The fleet starts home at the capital's planet; the enemy sits
+        // at the outermost planet, so reaching it takes deliberate travel.
+        let fleet_location = system.get_satellites().iter()
+            .position(|p| p.get_name() == capital_planet.get_name())
+            .map(|i| i + 1)
+            .unwrap_or(0);
+        let enemy_location = system.get_n_planets();
 
         Self {
             systems: vec![system.clone()],
@@ -94,6 +121,10 @@ impl Default for GameState {
             active_ship_hp: None,
             active_ship_weapon_damage: None,
             enemy_hp: ENEMY_MAX_HP,
+            fleet_location,
+            enemy_location,
+            fleet_destination: None,
+            fleet_travel_ticks_remaining: None,
         }
     }
 }
@@ -104,6 +135,7 @@ impl GameState {
         self.update_colonies();
         self.update_orbits();
         self.update_shipyard();
+        self.update_fleet_movement();
         self.update_combat();
     }
 
@@ -179,10 +211,22 @@ impl GameState {
         }
     }
 
+    fn update_fleet_movement(&mut self) {
+        if let Some(remaining) = self.fleet_travel_ticks_remaining {
+            if remaining <= 1 {
+                self.fleet_location = self.fleet_destination.take().unwrap();
+                self.fleet_travel_ticks_remaining = None;
+            } else {
+                self.fleet_travel_ticks_remaining = Some(remaining - 1);
+            }
+        }
+    }
+
     /// Resolves one round of combat between the active ship and the scripted enemy, if
-    /// both are alive. The enemy fires back only if it survives the player's attack.
+    /// both are alive and co-located. The enemy fires back only if it survives the
+    /// player's attack.
     fn update_combat(&mut self) {
-        if self.enemy_hp <= 0 {
+        if self.enemy_hp <= 0 || self.fleet_location != self.enemy_location {
             return
         }
 
@@ -293,6 +337,47 @@ impl GameState {
     pub fn has_won(&self) -> bool {
         self.enemy_hp <= 0
     }
+
+    fn get_body_name(&self, index: usize) -> String {
+        if index == 0 {
+            self.capital_system.get_star().get_name()
+        } else {
+            self.capital_system.get_satellites()[index - 1].get_name()
+        }
+    }
+
+    /// Commands the fleet to travel to the given body index. Requires a surviving ship,
+    /// no travel already in progress, and an actual destination change. Travel time is
+    /// proportional to how many bodies away the destination is. Returns whether the
+    /// fleet started moving.
+    pub fn move_fleet_to(&mut self, destination: usize) -> bool {
+        if !matches!(self.active_ship_hp, Some(hp) if hp > 0) {
+            return false
+        }
+        if self.fleet_travel_ticks_remaining.is_some() {
+            return false
+        }
+
+        let hops = (destination as i64 - self.fleet_location as i64).unsigned_abs() as u32;
+        if hops == 0 {
+            return false
+        }
+
+        self.fleet_destination = Some(destination);
+        self.fleet_travel_ticks_remaining = Some(hops * TRAVEL_TICKS_PER_HOP);
+        true
+    }
+
+    pub fn get_fleet_status(&self) -> FleetStatus {
+        FleetStatus {
+            has_ship: matches!(self.active_ship_hp, Some(hp) if hp > 0),
+            fleet_location_name: self.get_body_name(self.fleet_location),
+            enemy_location_name: self.get_body_name(self.enemy_location),
+            at_enemy_location: self.fleet_location == self.enemy_location,
+            destination_name: self.fleet_destination.map(|d| self.get_body_name(d)),
+            travel_ticks_remaining: self.fleet_travel_ticks_remaining,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -344,10 +429,12 @@ mod tests {
 
         // Drive the tick-completion logic directly rather than through the full,
         // RNG-driven mining/production chain that would otherwise need to produce
-        // enough components first.
+        // enough components first, and place the fleet at the enemy's location so
+        // combat isn't gated on travel.
         state.engine_design = Some("Ion drive".to_string());
         state.weapon_design = Some("Ion Cannon".to_string());
         state.ship_build_progress = Some(0);
+        state.fleet_location = state.enemy_location;
         assert!(!state.has_won());
 
         for _ in 0..SHIP_BUILD_TIME {
@@ -369,5 +456,66 @@ mod tests {
         assert_eq!(info.weapon_design, Some("Ion Cannon".to_string()));
         assert_eq!(info.ships_built, 1);
         assert_eq!(info.enemy_hp, 0);
+    }
+
+    #[test]
+    fn combat_requires_reaching_the_enemys_location() {
+        let mut state = GameState::new();
+        // Force a location gap so the fleet always has to travel.
+        state.fleet_location = 0;
+        state.enemy_location = 3;
+
+        state.active_ship_hp = Some(SHIP_MAX_HP);
+        state.active_ship_weapon_damage = Some(100);
+
+        // Not co-located yet: no damage should be dealt despite lethal weapon damage.
+        for _ in 0..5 {
+            state.tick();
+        }
+        assert_eq!(state.enemy_hp, ENEMY_MAX_HP);
+
+        state.fleet_location = state.enemy_location;
+        state.tick();
+        assert_eq!(state.enemy_hp, 0);
+        assert!(state.has_won());
+    }
+
+    #[test]
+    fn fleet_cannot_move_without_a_surviving_ship() {
+        let mut state = GameState::new();
+        assert!(!state.move_fleet_to(state.fleet_location + 1));
+
+        state.active_ship_hp = Some(0);
+        assert!(!state.move_fleet_to(state.fleet_location + 1));
+    }
+
+    #[test]
+    fn fleet_travels_over_time_and_arrives() {
+        let mut state = GameState::new();
+        state.active_ship_hp = Some(SHIP_MAX_HP);
+        let origin = state.fleet_location;
+        // enemy_location is always a valid body index (the last planet), unlike an
+        // arbitrary offset which could overshoot a randomly-generated small system.
+        // Fall back to the star (index 0, always valid and never the capital's own
+        // planet) on the rare chance the capital already sits at enemy_location.
+        let destination = if state.enemy_location != origin { state.enemy_location } else { 0 };
+        let expected_hops = (destination as i64 - origin as i64).unsigned_abs() as u32;
+
+        assert!(state.move_fleet_to(destination));
+        // Can't redirect mid-flight.
+        assert!(!state.move_fleet_to(origin));
+
+        let status = state.get_fleet_status();
+        assert_eq!(status.travel_ticks_remaining, Some(expected_hops * TRAVEL_TICKS_PER_HOP));
+        assert_eq!(status.fleet_location_name, state.get_body_name(origin));
+
+        for _ in 0..(expected_hops * TRAVEL_TICKS_PER_HOP) {
+            state.tick();
+        }
+
+        assert_eq!(state.fleet_location, destination);
+        let status = state.get_fleet_status();
+        assert_eq!(status.destination_name, None);
+        assert_eq!(status.travel_ticks_remaining, None);
     }
 }

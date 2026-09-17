@@ -1,7 +1,7 @@
 use color_eyre::owo_colors::OwoColorize;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::Text;
+use ratatui::text::{Line, Text};
 use ratatui::widgets::{Block, Borders, BorderType, List, ListDirection, ListState, Paragraph, Row, Table};
 use ratatui::widgets::canvas::Canvas;
 
@@ -9,6 +9,7 @@ use crate::action::Action;
 use crate::components::Component;
 use crate::game::celestial_bodies::{Displayable, Orbitable};
 use crate::game::celestial_bodies::solar_system::SolarSystem;
+use crate::game::game_state::FleetStatus;
 use crate::tabs::Tabs;
 use crate::tui::Frame;
 
@@ -22,6 +23,7 @@ pub struct SystemMenu {
     map_shift_x: f64,
     map_shift_y: f64,
     map_zoom: f64,
+    fleet: FleetStatus,
 }
 
 impl Default for SystemMenu {
@@ -39,6 +41,7 @@ impl Default for SystemMenu {
             map_shift_x: 0.0,
             map_shift_y: 0.0,
             map_zoom: 1.0,
+            fleet: FleetStatus::default(),
         }
     }
 }
@@ -66,6 +69,13 @@ impl Component for SystemMenu {
             Action::LoadSystemView(system) => {
                 self.set_system(system);
 
+            }
+            Action::LoadFleetStatus(status) => {
+                self.fleet = status;
+            }
+            Action::MainAction => {
+                let selected = self.state.selected().unwrap_or(0);
+                return Ok(Some(Action::MoveFleet(selected)))
             }
             Action::SelectNext => {
                 let selected = self.state.selected().unwrap();
@@ -156,6 +166,14 @@ impl Component for SystemMenu {
                 Constraint::Max(10),
             ],
         ).split(chunks[1]);
+
+        let l_chunks = Layout::new(
+            Direction::Vertical,
+            vec![
+                Constraint::Fill(1),
+                Constraint::Length(7),
+            ],
+        ).split(chunks[0]);
 
         let mut items = Vec::<Text>::with_capacity(1 + self.system.clone().unwrap().get_n_planets());
         items.push(
@@ -266,7 +284,36 @@ impl Component for SystemMenu {
                 .border_type(BorderType::Rounded)
         );
 
-        f.render_stateful_widget(list, chunks[0], &mut self.state);
+        let mut fleet_lines = vec![
+            Line::from(format!("Fleet at: {}", self.fleet.fleet_location_name)),
+            Line::styled(
+                format!("Enemy at: {}", self.fleet.enemy_location_name),
+                Style::default().fg(if self.fleet.at_enemy_location { Color::LightRed } else { Color::Gray }),
+            ),
+        ];
+        fleet_lines.push(match (&self.fleet.destination_name, self.fleet.travel_ticks_remaining) {
+            (Some(dest), Some(ticks)) => Line::from(format!("En route to {dest}: {ticks} ticks left")),
+            _ if !self.fleet.has_ship => Line::styled(
+                "Build a ship to deploy a fleet",
+                Style::default().fg(Color::DarkGray),
+            ),
+            _ if self.fleet.at_enemy_location => Line::styled(
+                "Engaging the enemy!",
+                Style::default().fg(Color::LightRed),
+            ),
+            _ => Line::from("Highlight a body and press <Alt-r> to move the fleet there"),
+        });
+
+        let fleet_panel = Paragraph::new(fleet_lines)
+            .block(
+                Block::default()
+                    .title("Fleet")
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded)
+            );
+
+        f.render_stateful_widget(list, l_chunks[0], &mut self.state);
+        f.render_widget(fleet_panel, l_chunks[1]);
         f.render_widget(object_view, s_chunks[1]);
         f.render_widget(system_image, s_chunks[0]);
         f.render_widget(help, v_chunks[2]);

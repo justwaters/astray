@@ -290,5 +290,18 @@
       "super-energetic-plasma"
     ],
     "description": ""
+  },
+
+  {
+    "name": "Ion Cannon",
+    "id": "ion-cannon",
+    "cost": 90,
+    "progress": 0,
+    "speed": 1,
+    "is_going": false,
+    "field": "space-warfare",
+    "required_any": [],
+    "required_all": [],
+    "description": ""
   }
 ]

@@ -6,18 +6,21 @@ use crate::game::shipbuilding::module_trait::ModuleTrait;
 
 pub enum ShipModuleType {
     SublightThruster,
+    Weapon,
 }
 
 impl Displayable for ShipModuleType {
     fn get_name(&self) -> String {
         match self {
             ShipModuleType::SublightThruster => { "Sublight Thruster" }
+            ShipModuleType::Weapon => { "Weapon" }
         }.to_string()
     }
 
     fn get_menu_color(&self) -> Color {
         match self {
             ShipModuleType::SublightThruster => { Color::Indexed(75) }
+            ShipModuleType::Weapon => { Color::Indexed(196) }
         }
     }
 }
@@ -26,6 +29,7 @@ impl From<String> for ShipModuleType {
     fn from(value: String) -> Self {
         match value.as_str() {
             "Sublight Thruster" => { Self::SublightThruster }
+            "Weapon" => { Self::Weapon }
             _ => panic!()
         }
     }

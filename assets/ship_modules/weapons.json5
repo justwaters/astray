@@ -1,0 +1,12 @@
+[
+  {
+    "name": "Ion Cannon",
+    "traits": [
+      { "name": "Beam focus" },
+      { "name": "Capacitor charge" }
+    ],
+    "is_unlocked": false,
+    "required_research_id": "ion-cannon",
+    "damage": 6
+  }
+]

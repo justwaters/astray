@@ -6,6 +6,7 @@ use serde::{
 use strum::Display;
 
 use crate::game::celestial_bodies::solar_system::SolarSystem;
+use crate::game::game_state::ShipyardInfo;
 use crate::tabs::Tabs;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Display, Deserialize)]
@@ -42,7 +43,7 @@ pub enum Action {
   LoadConstructionInfo(Vec<(String, u32)>),
   LoadShipModuleTypes(Vec<(String, Color)>),
   LoadShipModulesForType(Vec<(String, Color)>),
-  LoadShipyardInfo(Option<String>, u32, Option<u32>, u32, u32),
+  LoadShipyardInfo(ShipyardInfo),
 
   // Scheduling
   ScheduleLoadSystemView,
@@ -78,7 +79,7 @@ pub enum Action {
   StartResearch(String),
   StartSelectingBuilding,
   StartConstruction((String /* Colony name */, String /* Building type name */)),
-  DesignShipModule(String),
+  DesignShipModule(String /* module type */, String /* module name */),
   BuildShip,
   Victory,
 }

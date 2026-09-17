@@ -341,18 +341,14 @@ impl App {
               )
             )?;
           },
-          Action::DesignShipModule(ref name) => {
-            self.state.set_ship_design(name.clone());
+          Action::DesignShipModule(ref type_name, ref module_name) => {
+            self.state.set_ship_design(type_name.clone(), module_name.clone());
           },
           Action::BuildShip => {
             self.state.build_ship();
           },
           Action::ScheduleLoadShipyardInfo => {
-            let (design, ships_built, progress, available_nozzles, nozzle_cost) =
-                self.state.get_shipyard_info();
-            action_tx.send(
-              Action::LoadShipyardInfo(design, ships_built, progress, available_nozzles, nozzle_cost)
-            )?;
+            action_tx.send(Action::LoadShipyardInfo(self.state.get_shipyard_info()))?;
           },
           _ => {},
         }

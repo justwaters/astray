@@ -61,7 +61,7 @@ impl Component for TopMenu {
         ).split(area);
 
         let title = if self.victory {
-            " \u{1F3C6} VICTORY \u{2014} you designed and built your first starship! "
+            " \u{1F3C6} VICTORY \u{2014} you built a warship and destroyed the enemy! "
         } else {
             ""
         };

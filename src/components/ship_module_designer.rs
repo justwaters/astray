@@ -7,6 +7,7 @@ use ratatui::widgets::{Block, Borders, BorderType, List, ListState, Paragraph};
 use crate::action::Action;
 use crate::components::Component;
 use crate::components::utils::widget_utils::{select_next_in_list, select_prev_in_list};
+use crate::game::game_state::ShipyardInfo;
 use crate::tabs::Tabs;
 use crate::tui::Frame;
 
@@ -28,11 +29,7 @@ pub struct ShipModuleDesigner {
     types_list_state: ListState,
     modules_list_state: ListState,
     state: WidgetState,
-    current_design: Option<String>,
-    ships_built: u32,
-    build_progress: Option<u32>,
-    available_nozzles: u32,
-    nozzle_cost: u32,
+    shipyard: ShipyardInfo,
 }
 
 impl Component for ShipModuleDesigner {
@@ -120,30 +117,29 @@ impl Component for ShipModuleDesigner {
             }
             Action::Select => {
                 if self.state == WidgetState::SelectingModule && !self.modules.is_empty() {
-                    let name = self.modules[
+                    let type_name = self.module_types[
+                        self.types_list_state.selected().unwrap_or(0)
+                        ].0.clone();
+                    let module_name = self.modules[
                         self.modules_list_state.selected().unwrap_or(0)
                         ].0.clone();
                     self.state = WidgetState::Normal;
-                    self.current_design = Some(name.clone());
-                    return Ok(Some(Action::DesignShipModule(name)))
+                    return Ok(Some(Action::DesignShipModule(type_name, module_name)))
                 }
             }
             Action::MainAction => {
                 if self.state == WidgetState::Normal
-                    && self.current_design.is_some()
-                    && self.build_progress.is_none() {
+                    && self.shipyard.engine_design.is_some()
+                    && self.shipyard.weapon_design.is_some()
+                    && self.shipyard.build_progress_percent.is_none() {
                     return Ok(Some(Action::BuildShip))
                 }
             }
             Action::IngameTick => {
                 return Ok(Some(Action::ScheduleLoadShipyardInfo))
             }
-            Action::LoadShipyardInfo(design, ships_built, progress, available_nozzles, nozzle_cost) => {
-                self.current_design = design;
-                self.ships_built = ships_built;
-                self.build_progress = progress;
-                self.available_nozzles = available_nozzles;
-                self.nozzle_cost = nozzle_cost;
+            Action::LoadShipyardInfo(info) => {
+                self.shipyard = info;
             }
             _ => {}
         }
@@ -223,26 +219,50 @@ impl Component for ShipModuleDesigner {
 
         f.render_stateful_widget(modules_list, a_chunks[1], &mut self.modules_list_state);
 
+        let shipyard = &self.shipyard;
         let mut info_lines = vec![
             Line::from(format!(
-                "Current design: {}",
-                self.current_design.clone().unwrap_or_else(|| "None".to_string())
+                "Engine design: {}",
+                shipyard.engine_design.clone().unwrap_or_else(|| "None".to_string())
             )),
-            Line::from(format!("Ships built: {}", self.ships_built)),
+            Line::from(format!(
+                "Weapon design: {}",
+                shipyard.weapon_design.clone().unwrap_or_else(|| "None".to_string())
+            )),
+            Line::from(format!("Ships built: {}", shipyard.ships_built)),
             Line::styled(
-                format!("Engine Nozzles: {}/{}", self.available_nozzles, self.nozzle_cost),
+                format!("Engine Nozzles: {}/{}", shipyard.available_nozzles, shipyard.nozzle_cost),
                 Style::default().fg(
-                    if self.available_nozzles >= self.nozzle_cost { Color::LightGreen } else { Color::Gray }
+                    if shipyard.available_nozzles >= shipyard.nozzle_cost { Color::LightGreen } else { Color::Gray }
                 ),
             ),
+            Line::styled(
+                format!("Microprocessors: {}/{}", shipyard.available_microprocessors, shipyard.microprocessor_cost),
+                Style::default().fg(
+                    if shipyard.available_microprocessors >= shipyard.microprocessor_cost { Color::LightGreen } else { Color::Gray }
+                ),
+            ),
+            Line::from(""),
+            Line::styled(
+                format!("Enemy ship: {}/{} HP", shipyard.enemy_hp.max(0), shipyard.enemy_max_hp),
+                Style::default().fg(if shipyard.enemy_hp <= 0 { Color::LightGreen } else { Color::LightRed }),
+            ),
+            match shipyard.active_ship_hp {
+                Some(hp) => Line::styled(
+                    format!("Your ship: {}/{} HP", hp.max(0), shipyard.ship_max_hp),
+                    Style::default().fg(if hp <= 0 { Color::DarkGray } else { Color::LightCyan }),
+                ),
+                None => Line::styled("No ship currently deployed", Style::default().fg(Color::DarkGray)),
+            },
         ];
-        info_lines.push(match self.build_progress {
+        info_lines.push(match shipyard.build_progress_percent {
             Some(p) => Line::from(format!("Building... {p}%")),
-            None if self.current_design.is_none() => {
-                Line::from("Research and design a sublight engine to get started")
+            None if shipyard.engine_design.is_none() || shipyard.weapon_design.is_none() => {
+                Line::from("Research and design an engine and a weapon to get started")
             }
-            None if self.available_nozzles < self.nozzle_cost => {
-                Line::from("Build an Engine Nozzles factory chain to afford a ship")
+            None if shipyard.available_nozzles < shipyard.nozzle_cost
+                || shipyard.available_microprocessors < shipyard.microprocessor_cost => {
+                Line::from("Stockpile enough Engine Nozzles and Microprocessors to afford a ship")
             }
             None => Line::from("Press <Alt-r> to build a ship"),
         });

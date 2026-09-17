@@ -243,10 +243,18 @@ impl Component for ShipModuleDesigner {
                 ),
             ),
             Line::from(""),
-            Line::styled(
-                format!("Enemy ship: {}/{} HP", shipyard.enemy_hp.max(0), shipyard.enemy_max_hp),
-                Style::default().fg(if shipyard.enemy_hp <= 0 { Color::LightGreen } else { Color::LightRed }),
-            ),
+            if shipyard.living_enemies > 0 {
+                Line::styled(
+                    format!(
+                        "Enemy fleet: {}/{} HP ({} ship{})",
+                        shipyard.enemy_hp, shipyard.enemy_max_hp, shipyard.living_enemies,
+                        if shipyard.living_enemies == 1 { "" } else { "s" },
+                    ),
+                    Style::default().fg(Color::LightRed),
+                )
+            } else {
+                Line::styled("Enemy fleet: destroyed", Style::default().fg(Color::LightGreen))
+            },
             if shipyard.living_ships > 0 {
                 Line::styled(
                     format!(

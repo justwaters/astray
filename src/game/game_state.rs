@@ -1,3 +1,4 @@
+use rand::Rng;
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 
@@ -33,6 +34,12 @@ const ENEMY_ADVANCE_INTERVAL: u32 = 40;
 const COLONY_MAX_HP: i32 = 30;
 /// Damage the enemy deals to the colony each tick it besieges it unopposed.
 const COLONY_DAMAGE_PER_TICK: i32 = 2;
+/// Hit points of the rare, tougher escort that sometimes accompanies the standard enemy.
+const ELITE_ENEMY_MAX_HP: i32 = 100;
+/// Damage the elite escort deals per tick — more than double the standard enemy's.
+const ELITE_ENEMY_DAMAGE_PER_TICK: i32 = 7;
+/// Chance a fresh game spawns the elite escort alongside the standard enemy.
+const ELITE_ENEMY_SPAWN_CHANCE: f64 = 0.25;
 
 /// A snapshot of shipyard and combat state for the UI.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -47,6 +54,7 @@ pub struct ShipyardInfo {
     pub microprocessor_cost: u32,
     pub enemy_hp: i32,
     pub enemy_max_hp: i32,
+    pub living_enemies: u32,
     pub living_ships: u32,
     pub fleet_hp: i32,
     pub fleet_max_hp: i32,
@@ -59,6 +67,15 @@ pub struct ShipyardInfo {
 struct FleetShip {
     hp: i32,
     weapon_damage: u32,
+}
+
+/// A single hostile ship guarding the system. Normally there's just the standard one;
+/// the tougher elite escort only rarely joins it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct EnemyShip {
+    hp: i32,
+    max_hp: i32,
+    damage: i32,
 }
 
 /// A snapshot of fleet position and movement state for the UI.
@@ -92,7 +109,9 @@ pub struct GameState {
     /// Ships currently alive and deployed with the fleet, front-to-back. The enemy's
     /// counter-fire always hits index 0; dead ships are pruned during combat.
     active_ships: Vec<FleetShip>,
-    enemy_hp: i32,
+    /// Hostile ships guarding `enemy_location`, front-to-back. The player's combined
+    /// fire always hits index 0; dead enemies are pruned during combat.
+    enemies: Vec<EnemyShip>,
     /// Index into the system's body list (0 = star, 1..=n = planets by orbit order).
     fleet_location: usize,
     enemy_location: usize,
@@ -132,6 +151,15 @@ impl Default for GameState {
             0
         };
 
+        let mut enemies = vec![EnemyShip { hp: ENEMY_MAX_HP, max_hp: ENEMY_MAX_HP, damage: ENEMY_DAMAGE_PER_TICK }];
+        if rand::thread_rng().gen_bool(ELITE_ENEMY_SPAWN_CHANCE) {
+            enemies.push(EnemyShip {
+                hp: ELITE_ENEMY_MAX_HP,
+                max_hp: ELITE_ENEMY_MAX_HP,
+                damage: ELITE_ENEMY_DAMAGE_PER_TICK,
+            });
+        }
+
         Self {
             systems: vec![system.clone()],
             capital: capital_planet.clone(),
@@ -152,7 +180,7 @@ impl Default for GameState {
             weapon_design: None,
             ship_build_progress: None,
             active_ships: Vec::new(),
-            enemy_hp: ENEMY_MAX_HP,
+            enemies,
             fleet_location,
             enemy_location,
             capital_location: fleet_location,
@@ -258,25 +286,35 @@ impl GameState {
         }
     }
 
-    /// Resolves one round of combat between the fleet and the scripted enemy, if both
-    /// are alive and co-located. Every surviving ship fires at once, stacking damage;
-    /// the enemy fires back at whichever ship is at the front of the fleet, and only if
-    /// it survives the player's combined attack. Ships destroyed this round are pruned.
+    fn any_enemy_alive(&self) -> bool {
+        self.enemies.iter().any(|e| e.hp > 0)
+    }
+
+    /// Resolves one round of combat between the player's fleet and the enemy force, if
+    /// both are alive and co-located. Every surviving ship on each side fires at once,
+    /// stacking damage; each side's combined fire hits whichever ship is at the front of
+    /// the *other* side, so a rare elite escort keeps contributing return fire even while
+    /// the standard enemy in front of it is still being worn down. Wrecks are pruned.
     fn update_combat(&mut self) {
-        if self.enemy_hp <= 0 || self.fleet_location != self.enemy_location {
+        if self.fleet_location != self.enemy_location {
             return
         }
 
+        self.enemies.retain(|e| e.hp > 0);
+        if self.enemies.is_empty() {
+            return
+        }
         self.active_ships.retain(|s| s.hp > 0);
         if self.active_ships.is_empty() {
             return
         }
 
-        let total_damage: u32 = self.active_ships.iter().map(|s| s.weapon_damage).sum();
-        self.enemy_hp = (self.enemy_hp - total_damage as i32).max(0);
+        let player_damage: u32 = self.active_ships.iter().map(|s| s.weapon_damage).sum();
+        self.enemies[0].hp = (self.enemies[0].hp - player_damage as i32).max(0);
 
-        if self.enemy_hp > 0 {
-            self.active_ships[0].hp = (self.active_ships[0].hp - ENEMY_DAMAGE_PER_TICK).max(0);
+        let enemy_damage: i32 = self.enemies.iter().filter(|e| e.hp > 0).map(|e| e.damage).sum();
+        if enemy_damage > 0 {
+            self.active_ships[0].hp = (self.active_ships[0].hp - enemy_damage).max(0);
         }
     }
 
@@ -290,7 +328,7 @@ impl GameState {
     /// While the enemy isn't being held off by the player's fleet, it slowly advances
     /// one hop closer to the capital every `ENEMY_ADVANCE_INTERVAL` ticks.
     fn update_enemy_advance(&mut self) {
-        if self.enemy_hp <= 0 || self.is_fleet_defending() {
+        if !self.any_enemy_alive() || self.is_fleet_defending() {
             return
         }
 
@@ -308,7 +346,7 @@ impl GameState {
     /// Once the enemy reaches the capital unopposed, it besieges the colony directly.
     /// If the player's fleet is there instead, combat handles it and the colony is safe.
     fn update_colony_siege(&mut self) {
-        if self.enemy_hp <= 0
+        if !self.any_enemy_alive()
             || self.enemy_location != self.capital_location
             || self.is_fleet_defending() {
             return
@@ -398,6 +436,10 @@ impl GameState {
 
         let living_ships = self.active_ships.iter().filter(|s| s.hp > 0).count() as u32;
         let fleet_hp: i32 = self.active_ships.iter().filter(|s| s.hp > 0).map(|s| s.hp).sum();
+        let living_enemies_iter = self.enemies.iter().filter(|e| e.hp > 0);
+        let living_enemies = living_enemies_iter.clone().count() as u32;
+        let enemy_hp: i32 = living_enemies_iter.clone().map(|e| e.hp).sum();
+        let enemy_max_hp: i32 = living_enemies_iter.map(|e| e.max_hp).sum();
 
         ShipyardInfo {
             engine_design: self.engine_design.clone(),
@@ -408,8 +450,9 @@ impl GameState {
             nozzle_cost: SHIP_ENGINE_NOZZLE_COST,
             available_microprocessors,
             microprocessor_cost: SHIP_MICROPROCESSOR_COST,
-            enemy_hp: self.enemy_hp,
-            enemy_max_hp: ENEMY_MAX_HP,
+            enemy_hp,
+            enemy_max_hp,
+            living_enemies,
             living_ships,
             fleet_hp,
             fleet_max_hp: living_ships as i32 * SHIP_MAX_HP,
@@ -418,7 +461,7 @@ impl GameState {
     }
 
     pub fn has_won(&self) -> bool {
-        self.enemy_hp <= 0
+        !self.any_enemy_alive()
     }
 
     fn get_body_name(&self, index: usize) -> String {
@@ -453,10 +496,10 @@ impl GameState {
 
     pub fn get_fleet_status(&self) -> FleetStatus {
         let engaged = self.is_fleet_defending();
-        let colony_under_siege = self.enemy_hp > 0
+        let colony_under_siege = self.any_enemy_alive()
             && self.enemy_location == self.capital_location
             && !engaged;
-        let enemy_ticks_until_advance = if self.enemy_hp > 0 && !engaged {
+        let enemy_ticks_until_advance = if self.any_enemy_alive() && !engaged {
             Some(ENEMY_ADVANCE_INTERVAL - self.enemy_advance_counter)
         } else {
             None
@@ -546,6 +589,9 @@ mod tests {
         state.weapon_design = Some("Ion Cannon".to_string());
         state.ship_build_progress = Some(0);
         state.fleet_location = state.enemy_location;
+        // Pin to a single standard enemy so this test doesn't flake on the ~25% chance
+        // the tougher elite escort also spawns (see EnemyShip's spawn roll).
+        state.enemies = vec![EnemyShip { hp: ENEMY_MAX_HP, max_hp: ENEMY_MAX_HP, damage: ENEMY_DAMAGE_PER_TICK }];
         assert!(!state.has_won());
 
         for _ in 0..SHIP_BUILD_TIME {
@@ -573,7 +619,9 @@ mod tests {
     fn multiple_ships_stack_damage_and_the_front_ship_absorbs_return_fire() {
         let mut state = GameState::new();
         state.fleet_location = state.enemy_location;
-        state.enemy_hp = 100;
+        // Pin to a single standard enemy so this test's numbers don't depend on the
+        // rare elite escort's random spawn roll.
+        state.enemies = vec![EnemyShip { hp: 100, max_hp: 100, damage: ENEMY_DAMAGE_PER_TICK }];
         state.active_ships = vec![
             FleetShip { hp: 5, weapon_damage: 3 },
             FleetShip { hp: 20, weapon_damage: 3 },
@@ -581,18 +629,18 @@ mod tests {
         ];
 
         state.tick();
-        assert_eq!(state.enemy_hp, 91, "all three ships should have fired");
+        assert_eq!(state.enemies[0].hp, 91, "all three ships should have fired");
         assert_eq!(state.active_ships[0].hp, 2, "the front ship absorbs the counter-fire");
         assert_eq!(state.active_ships.len(), 3);
 
         state.tick();
-        assert_eq!(state.enemy_hp, 82);
+        assert_eq!(state.enemies[0].hp, 82);
         assert_eq!(state.active_ships[0].hp, 0, "the front ship should be destroyed this round");
 
         // The next round prunes the wreck before resolving damage: only the two
         // survivors fire, and the ship that was second in line now takes the hit.
         state.tick();
-        assert_eq!(state.enemy_hp, 76);
+        assert_eq!(state.enemies[0].hp, 76);
         assert_eq!(state.active_ships.len(), 2);
         assert_eq!(state.active_ships[0].hp, 17);
         assert_eq!(state.active_ships[1].hp, 20);
@@ -609,6 +657,7 @@ mod tests {
         // Force a location gap so the fleet always has to travel.
         state.fleet_location = 0;
         state.enemy_location = 3;
+        state.enemies = vec![EnemyShip { hp: ENEMY_MAX_HP, max_hp: ENEMY_MAX_HP, damage: ENEMY_DAMAGE_PER_TICK }];
 
         state.active_ships = vec![FleetShip { hp: SHIP_MAX_HP, weapon_damage: 100 }];
 
@@ -616,12 +665,51 @@ mod tests {
         for _ in 0..5 {
             state.tick();
         }
-        assert_eq!(state.enemy_hp, ENEMY_MAX_HP);
+        assert_eq!(state.enemies[0].hp, ENEMY_MAX_HP);
 
         state.fleet_location = state.enemy_location;
         state.tick();
-        assert_eq!(state.enemy_hp, 0);
+        assert_eq!(state.enemies[0].hp, 0);
         assert!(state.has_won());
+    }
+
+    #[test]
+    fn elite_escort_keeps_firing_and_must_also_be_defeated_to_win() {
+        let mut state = GameState::new();
+        state.fleet_location = state.enemy_location;
+        state.enemies = vec![
+            EnemyShip { hp: 10, max_hp: 10, damage: 3 },
+            EnemyShip { hp: 50, max_hp: 50, damage: 7 },
+        ];
+        // Enough HP to outlast several rounds of combined return fire, so this test
+        // isolates the enemy-side mechanics rather than the player's own survival.
+        state.active_ships = vec![FleetShip { hp: 1_000, weapon_damage: 5 }];
+
+        state.tick();
+        assert_eq!(state.enemies[0].hp, 5, "player damage hits the front (standard) enemy");
+        assert_eq!(state.active_ships[0].hp, 990, "both enemies fire back: 3 + 7");
+        assert_eq!(state.enemies.len(), 2);
+
+        state.tick();
+        assert_eq!(state.enemies[0].hp, 0, "the standard enemy is destroyed this round");
+        // The standard enemy dies to this same tick's damage, so — mirroring the
+        // single-enemy "final blow, no retaliation" rule — only the elite still fires.
+        assert_eq!(state.active_ships[0].hp, 983, "the just-destroyed enemy doesn't fire back: only 7");
+        assert!(!state.has_won(), "the elite escort is still alive");
+
+        state.tick();
+        assert_eq!(state.enemies.len(), 1, "the destroyed standard enemy is pruned");
+        assert_eq!(state.enemies[0].hp, 45, "damage now falls on the elite");
+        assert_eq!(state.active_ships[0].hp, 976, "only the elite fires back now: 7");
+
+        for _ in 0..9 {
+            state.tick();
+        }
+        assert!(state.has_won(), "defeating the elite too is required to win");
+
+        let info = state.get_shipyard_info();
+        assert_eq!(info.living_enemies, 0);
+        assert_eq!(info.enemy_hp, 0);
     }
 
     #[test]

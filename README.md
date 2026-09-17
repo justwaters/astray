@@ -11,7 +11,7 @@
 - Colony management with resource ticks and building construction
 - Design and build a fleet of armed starships from unlocked engine and weapon modules
 - Fleet movement between the star and planets in your system
-- Tick-based combat against a scripted enemy ship guarding the outer system
+- Tick-based combat against a scripted enemy guarding the outer system — rarely (25%) accompanied by a much tougher escort
 - The enemy advances on your colony over time if left unopposed — losing it ends the game
 - Real orbital mechanics for celestial bodies (orbit radius/period derived from orbital velocity)
 
@@ -21,7 +21,7 @@
 3. Once research unlocks a module, open the **Ship modules** tab, select its type, then the module, and press Enter to finalize a design — you need both an engine and a weapon design
 4. Press `<Alt-r>` in the Ship modules tab to build a ship from your current designs — press it again any time to build another and grow your fleet, even mid-fight
 5. Your fleet starts at your home planet, while the enemy guards the outermost planet in the system — open the **System View** tab, press `<Alt-s>` and the arrow keys to highlight a body, then `<Alt-r>` to send your fleet there. Travel takes time
-6. Once your fleet reaches the enemy's location, combat resolves automatically each tick — every surviving ship fires at once, stacking damage, while the enemy's counter-fire always hits whichever ship is at the front of the fleet until it's destroyed. Wipe out the enemy to win; if your whole fleet is destroyed first, build more ships and send them back to finish the job
+6. Once your fleet reaches the enemy's location, combat resolves automatically each tick — every surviving ship fires at once, stacking damage, while the enemy's counter-fire always hits whichever ship is at the front of the fleet until it's destroyed. Sometimes a second, much tougher escort is guarding alongside the standard enemy — check the Shipyard panel's "Enemy fleet" line before you commit, since it keeps firing even while you're still working through the weaker one. Wipe out every enemy ship to win; if your whole fleet is destroyed first, build more ships and send them back to finish the job
 7. Don't dawdle: if you never engage it, the enemy periodically advances toward your home planet (watch the **Fleet** panel in System View for a countdown) and, once it arrives, sieges your colony each tick until either you intercept it or the colony's HP hits 0 — losing the colony loses the game
 
 ## 🛠️ Installation

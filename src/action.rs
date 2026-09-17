@@ -42,7 +42,7 @@ pub enum Action {
   LoadConstructionInfo(Vec<(String, u32)>),
   LoadShipModuleTypes(Vec<(String, Color)>),
   LoadShipModulesForType(Vec<(String, Color)>),
-  LoadShipyardInfo(Option<String>, u32, Option<u32>),
+  LoadShipyardInfo(Option<String>, u32, Option<u32>, u32, u32),
 
   // Scheduling
   ScheduleLoadSystemView,

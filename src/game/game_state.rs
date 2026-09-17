@@ -6,12 +6,15 @@ use crate::game::celestial_bodies::solar_system::SolarSystem;
 use crate::game::colony::building::BuildingType;
 use crate::game::colony::colony::Colony;
 use crate::game::research::research_manager::ResearchManager;
+use crate::game::resource::resource::ResourceType;
 use crate::game::shipbuilding::ship::Ship;
 use crate::game::shipbuilding::ship_module::ShipModuleType;
 use crate::game::shipbuilding::ship_module_manager::ShipModuleManager;
 
 /// Number of in-game ticks it takes to build a ship once a design is chosen.
 const SHIP_BUILD_TIME: u32 = 20;
+/// Engine Nozzles spent from the capital colony's stockpile to start building a ship.
+const SHIP_ENGINE_NOZZLE_COST: u32 = 5;
 
 pub struct GameState {
     systems: Vec<SolarSystem>,
@@ -170,17 +173,36 @@ impl GameState {
         self.ship_design = Some(name);
     }
 
-    pub fn build_ship(&mut self) {
-        if self.ship_design.is_some() && self.ship_build_progress.is_none() {
+    /// Starts building a ship if a design is chosen, no build is already in progress, and the
+    /// capital colony can afford the Engine Nozzles cost. Returns whether the build started.
+    pub fn build_ship(&mut self) -> bool {
+        if self.ship_design.is_none() || self.ship_build_progress.is_some() {
+            return false
+        }
+
+        let Some(capital) = self.colonies.first_mut() else { return false };
+        if capital.try_spend_resource(ResourceType::CEngineNozzles, SHIP_ENGINE_NOZZLE_COST) {
             self.ship_build_progress = Some(0);
+            true
+        } else {
+            false
         }
     }
 
-    /// Returns `(current design, ships built, build progress %)`.
-    pub fn get_shipyard_info(&self) -> (Option<String>, u32, Option<u32>) {
+    /// Returns `(current design, ships built, build progress %, available/required Engine Nozzles)`.
+    pub fn get_shipyard_info(&self) -> (Option<String>, u32, Option<u32>, u32, u32) {
         let progress_percent = self.ship_build_progress
             .map(|p| (p * 100 / SHIP_BUILD_TIME).min(100));
-        (self.ship_design.clone(), self.ships.len() as u32, progress_percent)
+        let available_nozzles = self.colonies.first()
+            .map(|c| c.get_resource_amount(&ResourceType::CEngineNozzles))
+            .unwrap_or(0);
+        (
+            self.ship_design.clone(),
+            self.ships.len() as u32,
+            progress_percent,
+            available_nozzles,
+            SHIP_ENGINE_NOZZLE_COST,
+        )
     }
 
     pub fn has_won(&self) -> bool {
@@ -193,11 +215,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn research_unlocks_ship_module_and_building_it_wins() {
+    fn research_unlocks_ship_module() {
         let mut state = GameState::new();
 
         assert!(state.get_ship_modules_for_type("Sublight Thruster".to_string()).is_empty());
-        assert!(!state.has_won());
 
         state.start_research("ion-drive".to_string());
         for _ in 0..100 {
@@ -207,9 +228,28 @@ mod tests {
         let modules = state.get_ship_modules_for_type("Sublight Thruster".to_string());
         assert_eq!(modules.len(), 1);
         assert_eq!(modules[0].0, "Ion drive");
+    }
 
-        state.set_ship_design(modules[0].0.clone());
-        state.build_ship();
+    #[test]
+    fn building_a_ship_requires_engine_nozzles() {
+        let mut state = GameState::new();
+        state.set_ship_design("Ion drive".to_string());
+
+        // The capital colony starts with no stockpiled Engine Nozzles, so the build
+        // shouldn't start even though a design has been chosen.
+        assert!(!state.build_ship());
+        assert!(state.ship_build_progress.is_none());
+    }
+
+    #[test]
+    fn finishing_a_ship_build_wins_the_game() {
+        let mut state = GameState::new();
+
+        // Drive the tick-completion logic directly rather than through the full,
+        // RNG-driven mining/production chain that would otherwise need to produce
+        // enough Engine Nozzles first.
+        state.ship_design = Some("Ion drive".to_string());
+        state.ship_build_progress = Some(0);
         assert!(!state.has_won());
 
         for _ in 0..SHIP_BUILD_TIME {
@@ -217,9 +257,10 @@ mod tests {
         }
 
         assert!(state.has_won());
-        let (design, ships_built, progress) = state.get_shipyard_info();
+        let (design, ships_built, progress, _, cost) = state.get_shipyard_info();
         assert_eq!(design, Some("Ion drive".to_string()));
         assert_eq!(ships_built, 1);
         assert_eq!(progress, None);
+        assert_eq!(cost, SHIP_ENGINE_NOZZLE_COST);
     }
 }

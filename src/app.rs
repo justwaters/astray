@@ -178,8 +178,10 @@ impl App {
           Action::NavigateNextTab => {
             self.cur_tab += 1;
             self.cur_tab %= self.tabs.len();
+            self.mode = Mode::Main;
           }
           Action::NavigatePrevTab => {
+            self.mode = Mode::Main;
             if self.cur_tab != 0 {
               self.cur_tab -= 1;
             } else {
@@ -346,8 +348,11 @@ impl App {
             self.state.build_ship();
           },
           Action::ScheduleLoadShipyardInfo => {
-            let (design, ships_built, progress) = self.state.get_shipyard_info();
-            action_tx.send(Action::LoadShipyardInfo(design, ships_built, progress))?;
+            let (design, ships_built, progress, available_nozzles, nozzle_cost) =
+                self.state.get_shipyard_info();
+            action_tx.send(
+              Action::LoadShipyardInfo(design, ships_built, progress, available_nozzles, nozzle_cost)
+            )?;
           },
           _ => {},
         }

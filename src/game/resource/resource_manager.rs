@@ -84,4 +84,8 @@ impl ResourceManager {
             }
         ).collect()
     }
+
+    pub fn get_amount(&self, resource_type: &ResourceType) -> u32 {
+        *self.resources.get(resource_type).unwrap_or(&0)
+    }
 }

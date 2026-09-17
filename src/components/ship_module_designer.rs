@@ -31,6 +31,8 @@ pub struct ShipModuleDesigner {
     current_design: Option<String>,
     ships_built: u32,
     build_progress: Option<u32>,
+    available_nozzles: u32,
+    nozzle_cost: u32,
 }
 
 impl Component for ShipModuleDesigner {
@@ -42,11 +44,12 @@ impl Component for ShipModuleDesigner {
 
         match action {
             Action::StartSelecting => {
-                if self.state == WidgetState::Normal {
-                    self.state = WidgetState::SelectingType;
-                    if self.types_list_state.selected().is_none() {
-                        self.types_list_state.select(Some(0))
-                    }
+                // Always (re)start type selection, even if a previous visit to this tab was
+                // left mid-flow (e.g. no modules were unlocked yet) — otherwise the widget
+                // gets stuck since there's no dedicated "cancel" key.
+                self.state = WidgetState::SelectingType;
+                if self.types_list_state.selected().is_none() {
+                    self.types_list_state.select(Some(0))
                 }
             }
             Action::ContinueSelecting => {
@@ -135,10 +138,12 @@ impl Component for ShipModuleDesigner {
             Action::IngameTick => {
                 return Ok(Some(Action::ScheduleLoadShipyardInfo))
             }
-            Action::LoadShipyardInfo(design, ships_built, progress) => {
+            Action::LoadShipyardInfo(design, ships_built, progress, available_nozzles, nozzle_cost) => {
                 self.current_design = design;
                 self.ships_built = ships_built;
                 self.build_progress = progress;
+                self.available_nozzles = available_nozzles;
+                self.nozzle_cost = nozzle_cost;
             }
             _ => {}
         }
@@ -224,13 +229,22 @@ impl Component for ShipModuleDesigner {
                 self.current_design.clone().unwrap_or_else(|| "None".to_string())
             )),
             Line::from(format!("Ships built: {}", self.ships_built)),
+            Line::styled(
+                format!("Engine Nozzles: {}/{}", self.available_nozzles, self.nozzle_cost),
+                Style::default().fg(
+                    if self.available_nozzles >= self.nozzle_cost { Color::LightGreen } else { Color::Gray }
+                ),
+            ),
         ];
         info_lines.push(match self.build_progress {
             Some(p) => Line::from(format!("Building... {p}%")),
-            None if self.current_design.is_some() => {
-                Line::from("Press <Alt-r> to build a ship")
+            None if self.current_design.is_none() => {
+                Line::from("Research and design a sublight engine to get started")
             }
-            None => Line::from("Research and design a sublight engine to get started"),
+            None if self.available_nozzles < self.nozzle_cost => {
+                Line::from("Build an Engine Nozzles factory chain to afford a ship")
+            }
+            None => Line::from("Press <Alt-r> to build a ship"),
         });
 
         let shipyard_info = Paragraph::new(info_lines)

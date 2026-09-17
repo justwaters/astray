@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::game::celestial_bodies::Displayable;
 use crate::game::colony::building::BuildingType;
 use crate::game::colony::building_manager::BuildingManager;
-use crate::game::resource::resource::{ResourceDeposit, ResourceType};
+use crate::game::resource::resource::{ResourceDeposit, ResourceTransaction, ResourceType};
 use crate::game::resource::resource_manager::ResourceManager;
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
@@ -56,6 +56,21 @@ impl Colony {
 
     pub fn get_resources(&self) -> Vec<(ResourceType, u32)> {
         self.resource_manager.get_resources()
+    }
+
+    pub fn get_resource_amount(&self, resource_type: &ResourceType) -> u32 {
+        self.resource_manager.get_amount(resource_type)
+    }
+
+    /// Attempts to deduct `amount` of `resource_type`, returning whether there was enough.
+    pub fn try_spend_resource(&mut self, resource_type: ResourceType, amount: u32) -> bool {
+        let transaction = ResourceTransaction::new(resource_type, -(amount as i32));
+        if self.resource_manager.is_applicable(&transaction) {
+            self.resource_manager.apply(transaction);
+            true
+        } else {
+            false
+        }
     }
 
     pub fn get_construction(&self) -> Vec<(String, u32)> {

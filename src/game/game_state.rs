@@ -26,6 +26,13 @@ const ENEMY_MAX_HP: i32 = 40;
 const ENEMY_DAMAGE_PER_TICK: i32 = 3;
 /// In-game ticks it takes a fleet to travel one hop (one body index) in the system.
 const TRAVEL_TICKS_PER_HOP: u32 = 5;
+/// In-game ticks between the enemy advancing one hop toward the capital, while
+/// the player's fleet isn't there to hold it off.
+const ENEMY_ADVANCE_INTERVAL: u32 = 40;
+/// Hit points of the capital colony. Reaching 0 loses the game.
+const COLONY_MAX_HP: i32 = 30;
+/// Damage the enemy deals to the colony each tick it besieges it unopposed.
+const COLONY_DAMAGE_PER_TICK: i32 = 2;
 
 /// A snapshot of shipyard and combat state for the UI.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -53,6 +60,10 @@ pub struct FleetStatus {
     pub at_enemy_location: bool,
     pub destination_name: Option<String>,
     pub travel_ticks_remaining: Option<u32>,
+    pub colony_hp: i32,
+    pub colony_max_hp: i32,
+    pub colony_under_siege: bool,
+    pub enemy_ticks_until_advance: Option<u32>,
 }
 
 pub struct GameState {
@@ -74,8 +85,12 @@ pub struct GameState {
     /// Index into the system's body list (0 = star, 1..=n = planets by orbit order).
     fleet_location: usize,
     enemy_location: usize,
+    /// Fixed location of the capital colony (unlike fleet_location, this never moves).
+    capital_location: usize,
     fleet_destination: Option<usize>,
     fleet_travel_ticks_remaining: Option<u32>,
+    enemy_advance_counter: u32,
+    colony_hp: i32,
 }
 
 impl Default for GameState {
@@ -123,8 +138,11 @@ impl Default for GameState {
             enemy_hp: ENEMY_MAX_HP,
             fleet_location,
             enemy_location,
+            capital_location: fleet_location,
             fleet_destination: None,
             fleet_travel_ticks_remaining: None,
+            enemy_advance_counter: 0,
+            colony_hp: COLONY_MAX_HP,
         }
     }
 }
@@ -137,6 +155,8 @@ impl GameState {
         self.update_shipyard();
         self.update_fleet_movement();
         self.update_combat();
+        self.update_enemy_advance();
+        self.update_colony_siege();
     }
 
     pub fn new() -> Self {
@@ -241,6 +261,47 @@ impl GameState {
         if self.enemy_hp > 0 {
             self.active_ship_hp = Some((ship_hp - ENEMY_DAMAGE_PER_TICK).max(0));
         }
+    }
+
+    /// Whether a surviving ship is at the enemy's location, holding it off. A wrecked
+    /// ship sitting on the same tile doesn't count — it can't fight back.
+    fn is_fleet_defending(&self) -> bool {
+        self.fleet_location == self.enemy_location
+            && matches!(self.active_ship_hp, Some(hp) if hp > 0)
+    }
+
+    /// While the enemy isn't being held off by the player's fleet, it slowly advances
+    /// one hop closer to the capital every `ENEMY_ADVANCE_INTERVAL` ticks.
+    fn update_enemy_advance(&mut self) {
+        if self.enemy_hp <= 0 || self.is_fleet_defending() {
+            return
+        }
+
+        self.enemy_advance_counter += 1;
+        if self.enemy_advance_counter >= ENEMY_ADVANCE_INTERVAL {
+            self.enemy_advance_counter = 0;
+            match self.enemy_location.cmp(&self.capital_location) {
+                std::cmp::Ordering::Greater => self.enemy_location -= 1,
+                std::cmp::Ordering::Less => self.enemy_location += 1,
+                std::cmp::Ordering::Equal => {}
+            }
+        }
+    }
+
+    /// Once the enemy reaches the capital unopposed, it besieges the colony directly.
+    /// If the player's fleet is there instead, combat handles it and the colony is safe.
+    fn update_colony_siege(&mut self) {
+        if self.enemy_hp <= 0
+            || self.enemy_location != self.capital_location
+            || self.is_fleet_defending() {
+            return
+        }
+
+        self.colony_hp = (self.colony_hp - COLONY_DAMAGE_PER_TICK).max(0);
+    }
+
+    pub fn has_lost(&self) -> bool {
+        self.colony_hp <= 0
     }
 
     pub fn get_colonies(&self) -> Vec<Colony> {
@@ -369,13 +430,27 @@ impl GameState {
     }
 
     pub fn get_fleet_status(&self) -> FleetStatus {
+        let engaged = self.is_fleet_defending();
+        let colony_under_siege = self.enemy_hp > 0
+            && self.enemy_location == self.capital_location
+            && !engaged;
+        let enemy_ticks_until_advance = if self.enemy_hp > 0 && !engaged {
+            Some(ENEMY_ADVANCE_INTERVAL - self.enemy_advance_counter)
+        } else {
+            None
+        };
+
         FleetStatus {
             has_ship: matches!(self.active_ship_hp, Some(hp) if hp > 0),
             fleet_location_name: self.get_body_name(self.fleet_location),
             enemy_location_name: self.get_body_name(self.enemy_location),
-            at_enemy_location: self.fleet_location == self.enemy_location,
+            at_enemy_location: engaged,
             destination_name: self.fleet_destination.map(|d| self.get_body_name(d)),
             travel_ticks_remaining: self.fleet_travel_ticks_remaining,
+            colony_hp: self.colony_hp,
+            colony_max_hp: COLONY_MAX_HP,
+            colony_under_siege,
+            enemy_ticks_until_advance,
         }
     }
 }
@@ -517,5 +592,75 @@ mod tests {
         let status = state.get_fleet_status();
         assert_eq!(status.destination_name, None);
         assert_eq!(status.travel_ticks_remaining, None);
+    }
+
+    #[test]
+    fn unopposed_enemy_advances_toward_the_capital() {
+        let mut state = GameState::new();
+        state.capital_location = 0;
+        state.enemy_location = 3;
+        state.fleet_location = 10; // nowhere near the enemy, so it isn't held off
+
+        for _ in 0..(ENEMY_ADVANCE_INTERVAL - 1) {
+            state.tick();
+        }
+        assert_eq!(state.enemy_location, 3, "shouldn't advance before the interval elapses");
+
+        state.tick();
+        assert_eq!(state.enemy_location, 2, "should have advanced one hop toward the capital");
+    }
+
+    #[test]
+    fn enemy_does_not_advance_while_engaged() {
+        let mut state = GameState::new();
+        state.capital_location = 0;
+        state.enemy_location = 3;
+        state.fleet_location = 3; // fleet is holding the line at the enemy's location
+        state.active_ship_hp = Some(SHIP_MAX_HP); // a wreck wouldn't hold anything off
+
+        for _ in 0..(ENEMY_ADVANCE_INTERVAL * 2) {
+            state.tick();
+        }
+        assert_eq!(state.enemy_location, 3);
+    }
+
+    #[test]
+    fn unopposed_siege_destroys_the_colony_and_loses_the_game() {
+        let mut state = GameState::new();
+        state.capital_location = 0;
+        state.enemy_location = 0; // enemy has already reached the capital
+        // Index 1 (the first planet) is always valid, unlike an arbitrary offset that
+        // could exceed a randomly-generated small system's planet count.
+        state.fleet_location = 1; // fleet is elsewhere, not defending
+
+        assert!(!state.has_lost());
+        let ticks_to_destroy = (COLONY_MAX_HP as f32 / COLONY_DAMAGE_PER_TICK as f32).ceil() as u32;
+        for _ in 0..ticks_to_destroy {
+            state.tick();
+        }
+
+        assert!(state.has_lost());
+        assert_eq!(state.get_fleet_status().colony_hp, 0);
+    }
+
+    #[test]
+    fn defending_the_capital_prevents_the_siege() {
+        let mut state = GameState::new();
+        state.capital_location = 0;
+        state.enemy_location = 0;
+        state.fleet_location = 0; // fleet is home defending
+        // A ship that dies mid-fight stops defending (see `enemy_does_not_advance_while_engaged`'s
+        // sibling concern) — give it enough HP to outlast the whole test regardless of the
+        // enemy's per-tick counter-damage, so this test isolates "does defending block the siege"
+        // from "does the defender survive combat".
+        state.active_ship_hp = Some(1_000_000);
+        state.active_ship_weapon_damage = Some(0); // don't accidentally win mid-test
+
+        for _ in 0..(COLONY_MAX_HP * 2) {
+            state.tick();
+        }
+
+        assert_eq!(state.get_fleet_status().colony_hp, COLONY_MAX_HP);
+        assert!(!state.has_lost());
     }
 }

@@ -84,4 +84,5 @@ pub enum Action {
   BuildShip,
   MoveFleet(usize /* body index */),
   Victory,
+  Defeat,
 }

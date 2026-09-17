@@ -12,6 +12,7 @@
 - Design and build an armed starship from unlocked engine and weapon modules
 - Fleet movement between the star and planets in your system
 - Tick-based combat against a scripted enemy ship guarding the outer system
+- The enemy advances on your colony over time if left unopposed — losing it ends the game
 - Real orbital mechanics for celestial bodies (orbit radius/period derived from orbital velocity)
 
 ## 🎮 How to play
@@ -21,6 +22,7 @@
 4. Press `<Alt-r>` in the Ship modules tab to build a ship from your current designs
 5. Your fleet starts at your home planet, while the enemy guards the outermost planet in the system — open the **System View** tab, press `<Alt-s>` and the arrow keys to highlight a body, then `<Alt-r>` to send your fleet there. Travel takes time
 6. Once your fleet reaches the enemy's location, combat resolves automatically each tick — destroy it to win. If your ship is destroyed first, build another and send it back to finish the job
+7. Don't dawdle: if you never engage it, the enemy periodically advances toward your home planet (watch the **Fleet** panel in System View for a countdown) and, once it arrives, sieges your colony each tick until either you intercept it or the colony's HP hits 0 — losing the colony loses the game
 
 ## 🛠️ Installation
 ```

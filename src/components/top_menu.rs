@@ -9,6 +9,7 @@ pub struct TopMenu {
     tabs: Vec<String>,
     selected: usize,
     victory: bool,
+    defeat: bool,
 }
 
 impl Default for TopMenu {
@@ -17,6 +18,7 @@ impl Default for TopMenu {
             tabs: vec![],
             selected: 1,
             victory: false,
+            defeat: false,
         }
     }
 }
@@ -45,6 +47,9 @@ impl Component for TopMenu {
             Action::Victory => {
                 self.victory = true;
             }
+            Action::Defeat => {
+                self.defeat = true;
+            }
             _ => {}
         }
 
@@ -60,10 +65,17 @@ impl Component for TopMenu {
             ],
         ).split(area);
 
-        let title = if self.victory {
-            " \u{1F3C6} VICTORY \u{2014} you built a warship and destroyed the enemy! "
+        let mut banners = Vec::new();
+        if self.victory {
+            banners.push("\u{1F3C6} VICTORY \u{2014} you built a warship and destroyed the enemy!");
+        }
+        if self.defeat {
+            banners.push("\u{1F480} DEFEAT \u{2014} the enemy destroyed your colony!");
+        }
+        let title = if banners.is_empty() {
+            String::new()
         } else {
-            ""
+            format!(" {} ", banners.join(" | "))
         };
 
         let tabs = Tabs::new(self.tabs.clone())

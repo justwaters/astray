@@ -45,6 +45,7 @@ pub struct App {
   game_tickrate_ratio: u32,
   game_tick_counter: u32,
   victory_announced: bool,
+  defeat_announced: bool,
 }
 
 impl App {
@@ -86,6 +87,7 @@ impl App {
       game_tickrate_ratio: 10,
       game_tick_counter: 0,
       victory_announced: false,
+      defeat_announced: false,
     })
   }
 
@@ -170,6 +172,10 @@ impl App {
             if !self.victory_announced && self.state.has_won() {
               self.victory_announced = true;
               action_tx.send(Action::Victory)?;
+            }
+            if !self.defeat_announced && self.state.has_lost() {
+              self.defeat_announced = true;
+              action_tx.send(Action::Defeat)?;
             }
           }
           Action::Quit => self.should_quit = true,

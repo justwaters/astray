@@ -290,6 +290,10 @@ impl Component for SystemMenu {
                 format!("Enemy at: {}", self.fleet.enemy_location_name),
                 Style::default().fg(if self.fleet.at_enemy_location { Color::LightRed } else { Color::Gray }),
             ),
+            Line::styled(
+                format!("Colony: {}/{} HP", self.fleet.colony_hp, self.fleet.colony_max_hp),
+                Style::default().fg(if self.fleet.colony_under_siege { Color::LightRed } else { Color::LightGreen }),
+            ),
         ];
         fleet_lines.push(match (&self.fleet.destination_name, self.fleet.travel_ticks_remaining) {
             (Some(dest), Some(ticks)) => Line::from(format!("En route to {dest}: {ticks} ticks left")),
@@ -303,6 +307,17 @@ impl Component for SystemMenu {
             ),
             _ => Line::from("Highlight a body and press <Alt-r> to move the fleet there"),
         });
+        if self.fleet.colony_under_siege {
+            fleet_lines.push(Line::styled(
+                "\u{26A0} The colony is under attack!",
+                Style::default().fg(Color::LightRed),
+            ));
+        } else if let Some(ticks) = self.fleet.enemy_ticks_until_advance {
+            fleet_lines.push(Line::styled(
+                format!("Enemy advances in {ticks} ticks if unopposed"),
+                Style::default().fg(Color::Gray),
+            ));
+        }
 
         let fleet_panel = Paragraph::new(fleet_lines)
             .block(

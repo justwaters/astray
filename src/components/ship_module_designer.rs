@@ -247,12 +247,17 @@ impl Component for ShipModuleDesigner {
                 format!("Enemy ship: {}/{} HP", shipyard.enemy_hp.max(0), shipyard.enemy_max_hp),
                 Style::default().fg(if shipyard.enemy_hp <= 0 { Color::LightGreen } else { Color::LightRed }),
             ),
-            match shipyard.active_ship_hp {
-                Some(hp) => Line::styled(
-                    format!("Your ship: {}/{} HP", hp.max(0), shipyard.ship_max_hp),
-                    Style::default().fg(if hp <= 0 { Color::DarkGray } else { Color::LightCyan }),
-                ),
-                None => Line::styled("No ship currently deployed", Style::default().fg(Color::DarkGray)),
+            if shipyard.living_ships > 0 {
+                Line::styled(
+                    format!(
+                        "Fleet: {}/{} HP ({} ship{})",
+                        shipyard.fleet_hp, shipyard.fleet_max_hp, shipyard.living_ships,
+                        if shipyard.living_ships == 1 { "" } else { "s" },
+                    ),
+                    Style::default().fg(Color::LightCyan),
+                )
+            } else {
+                Line::styled("No ships currently deployed", Style::default().fg(Color::DarkGray))
             },
         ];
         info_lines.push(match shipyard.build_progress_percent {

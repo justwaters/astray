@@ -47,8 +47,18 @@ pub struct ShipyardInfo {
     pub microprocessor_cost: u32,
     pub enemy_hp: i32,
     pub enemy_max_hp: i32,
-    pub active_ship_hp: Option<i32>,
+    pub living_ships: u32,
+    pub fleet_hp: i32,
+    pub fleet_max_hp: i32,
     pub ship_max_hp: i32,
+}
+
+/// A single surviving ship's combat stats. Distinct from the public `Ship` build-log
+/// record, which just remembers what was built, not whether it's still alive.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FleetShip {
+    hp: i32,
+    weapon_damage: u32,
 }
 
 /// A snapshot of fleet position and movement state for the UI.
@@ -79,8 +89,9 @@ pub struct GameState {
     engine_design: Option<String>,
     weapon_design: Option<String>,
     ship_build_progress: Option<u32>,
-    active_ship_hp: Option<i32>,
-    active_ship_weapon_damage: Option<u32>,
+    /// Ships currently alive and deployed with the fleet, front-to-back. The enemy's
+    /// counter-fire always hits index 0; dead ships are pruned during combat.
+    active_ships: Vec<FleetShip>,
     enemy_hp: i32,
     /// Index into the system's body list (0 = star, 1..=n = planets by orbit order).
     fleet_location: usize,
@@ -107,12 +118,19 @@ impl Default for GameState {
 
         // Body indices match the System View's own scheme: 0 = star, 1..=n = planets
         // in orbit order. The fleet starts home at the capital's planet; the enemy sits
-        // at the outermost planet, so reaching it takes deliberate travel.
+        // at the outermost planet, so reaching it takes deliberate travel. On the rare
+        // chance the capital *is* the outermost planet, fall back to the star (always a
+        // different index) — otherwise the enemy would besiege the colony from tick 0,
+        // with no ship yet built and no warning.
         let fleet_location = system.get_satellites().iter()
             .position(|p| p.get_name() == capital_planet.get_name())
             .map(|i| i + 1)
             .unwrap_or(0);
-        let enemy_location = system.get_n_planets();
+        let enemy_location = if system.get_n_planets() != fleet_location {
+            system.get_n_planets()
+        } else {
+            0
+        };
 
         Self {
             systems: vec![system.clone()],
@@ -133,8 +151,7 @@ impl Default for GameState {
             engine_design: None,
             weapon_design: None,
             ship_build_progress: None,
-            active_ship_hp: None,
-            active_ship_weapon_damage: None,
+            active_ships: Vec::new(),
             enemy_hp: ENEMY_MAX_HP,
             fleet_location,
             enemy_location,
@@ -222,8 +239,7 @@ impl GameState {
                 let weapon = self.weapon_design.clone().unwrap();
                 let damage = self.ship_module_manager.get_weapon_damage(&weapon).unwrap_or(0);
                 self.ships.push(Ship::new(engine, weapon));
-                self.active_ship_hp = Some(SHIP_MAX_HP);
-                self.active_ship_weapon_damage = Some(damage);
+                self.active_ships.push(FleetShip { hp: SHIP_MAX_HP, weapon_damage: damage });
                 self.ship_build_progress = None;
             } else {
                 self.ship_build_progress = Some(progress);
@@ -242,32 +258,33 @@ impl GameState {
         }
     }
 
-    /// Resolves one round of combat between the active ship and the scripted enemy, if
-    /// both are alive and co-located. The enemy fires back only if it survives the
-    /// player's attack.
+    /// Resolves one round of combat between the fleet and the scripted enemy, if both
+    /// are alive and co-located. Every surviving ship fires at once, stacking damage;
+    /// the enemy fires back at whichever ship is at the front of the fleet, and only if
+    /// it survives the player's combined attack. Ships destroyed this round are pruned.
     fn update_combat(&mut self) {
         if self.enemy_hp <= 0 || self.fleet_location != self.enemy_location {
             return
         }
 
-        let (Some(ship_hp), Some(weapon_damage)) = (self.active_ship_hp, self.active_ship_weapon_damage) else {
-            return
-        };
-        if ship_hp <= 0 {
+        self.active_ships.retain(|s| s.hp > 0);
+        if self.active_ships.is_empty() {
             return
         }
 
-        self.enemy_hp = (self.enemy_hp - weapon_damage as i32).max(0);
+        let total_damage: u32 = self.active_ships.iter().map(|s| s.weapon_damage).sum();
+        self.enemy_hp = (self.enemy_hp - total_damage as i32).max(0);
+
         if self.enemy_hp > 0 {
-            self.active_ship_hp = Some((ship_hp - ENEMY_DAMAGE_PER_TICK).max(0));
+            self.active_ships[0].hp = (self.active_ships[0].hp - ENEMY_DAMAGE_PER_TICK).max(0);
         }
     }
 
-    /// Whether a surviving ship is at the enemy's location, holding it off. A wrecked
-    /// ship sitting on the same tile doesn't count — it can't fight back.
+    /// Whether at least one surviving ship is at the enemy's location, holding it off.
+    /// A fleet of wrecks sitting on the same tile doesn't count — it can't fight back.
     fn is_fleet_defending(&self) -> bool {
         self.fleet_location == self.enemy_location
-            && matches!(self.active_ship_hp, Some(hp) if hp > 0)
+            && self.active_ships.iter().any(|s| s.hp > 0)
     }
 
     /// While the enemy isn't being held off by the player's fleet, it slowly advances
@@ -379,6 +396,9 @@ impl GameState {
             ))
             .unwrap_or((0, 0));
 
+        let living_ships = self.active_ships.iter().filter(|s| s.hp > 0).count() as u32;
+        let fleet_hp: i32 = self.active_ships.iter().filter(|s| s.hp > 0).map(|s| s.hp).sum();
+
         ShipyardInfo {
             engine_design: self.engine_design.clone(),
             weapon_design: self.weapon_design.clone(),
@@ -390,7 +410,9 @@ impl GameState {
             microprocessor_cost: SHIP_MICROPROCESSOR_COST,
             enemy_hp: self.enemy_hp,
             enemy_max_hp: ENEMY_MAX_HP,
-            active_ship_hp: self.active_ship_hp,
+            living_ships,
+            fleet_hp,
+            fleet_max_hp: living_ships as i32 * SHIP_MAX_HP,
             ship_max_hp: SHIP_MAX_HP,
         }
     }
@@ -412,7 +434,7 @@ impl GameState {
     /// proportional to how many bodies away the destination is. Returns whether the
     /// fleet started moving.
     pub fn move_fleet_to(&mut self, destination: usize) -> bool {
-        if !matches!(self.active_ship_hp, Some(hp) if hp > 0) {
+        if !self.active_ships.iter().any(|s| s.hp > 0) {
             return false
         }
         if self.fleet_travel_ticks_remaining.is_some() {
@@ -441,7 +463,7 @@ impl GameState {
         };
 
         FleetStatus {
-            has_ship: matches!(self.active_ship_hp, Some(hp) if hp > 0),
+            has_ship: self.active_ships.iter().any(|s| s.hp > 0),
             fleet_location_name: self.get_body_name(self.fleet_location),
             enemy_location_name: self.get_body_name(self.enemy_location),
             at_enemy_location: engaged,
@@ -458,6 +480,20 @@ impl GameState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_fresh_game_never_starts_with_the_enemy_already_at_the_capital() {
+        // Regression test: if a randomly-generated system happens to place the capital
+        // on the outermost planet, enemy_location must not default to the same index —
+        // otherwise the colony would be under siege from tick 0, with no ship built yet
+        // and no warning the player could have acted on.
+        for _ in 0..200 {
+            let state = GameState::new();
+            assert_ne!(state.enemy_location, state.capital_location);
+            assert!(!state.has_lost());
+            assert!(!state.get_fleet_status().colony_under_siege);
+        }
+    }
 
     #[test]
     fn research_unlocks_ship_modules() {
@@ -534,14 +570,47 @@ mod tests {
     }
 
     #[test]
+    fn multiple_ships_stack_damage_and_the_front_ship_absorbs_return_fire() {
+        let mut state = GameState::new();
+        state.fleet_location = state.enemy_location;
+        state.enemy_hp = 100;
+        state.active_ships = vec![
+            FleetShip { hp: 5, weapon_damage: 3 },
+            FleetShip { hp: 20, weapon_damage: 3 },
+            FleetShip { hp: 20, weapon_damage: 3 },
+        ];
+
+        state.tick();
+        assert_eq!(state.enemy_hp, 91, "all three ships should have fired");
+        assert_eq!(state.active_ships[0].hp, 2, "the front ship absorbs the counter-fire");
+        assert_eq!(state.active_ships.len(), 3);
+
+        state.tick();
+        assert_eq!(state.enemy_hp, 82);
+        assert_eq!(state.active_ships[0].hp, 0, "the front ship should be destroyed this round");
+
+        // The next round prunes the wreck before resolving damage: only the two
+        // survivors fire, and the ship that was second in line now takes the hit.
+        state.tick();
+        assert_eq!(state.enemy_hp, 76);
+        assert_eq!(state.active_ships.len(), 2);
+        assert_eq!(state.active_ships[0].hp, 17);
+        assert_eq!(state.active_ships[1].hp, 20);
+
+        let info = state.get_shipyard_info();
+        assert_eq!(info.living_ships, 2);
+        assert_eq!(info.fleet_hp, 37);
+        assert_eq!(info.fleet_max_hp, 40);
+    }
+
+    #[test]
     fn combat_requires_reaching_the_enemys_location() {
         let mut state = GameState::new();
         // Force a location gap so the fleet always has to travel.
         state.fleet_location = 0;
         state.enemy_location = 3;
 
-        state.active_ship_hp = Some(SHIP_MAX_HP);
-        state.active_ship_weapon_damage = Some(100);
+        state.active_ships = vec![FleetShip { hp: SHIP_MAX_HP, weapon_damage: 100 }];
 
         // Not co-located yet: no damage should be dealt despite lethal weapon damage.
         for _ in 0..5 {
@@ -560,14 +629,14 @@ mod tests {
         let mut state = GameState::new();
         assert!(!state.move_fleet_to(state.fleet_location + 1));
 
-        state.active_ship_hp = Some(0);
+        state.active_ships = vec![FleetShip { hp: 0, weapon_damage: 0 }];
         assert!(!state.move_fleet_to(state.fleet_location + 1));
     }
 
     #[test]
     fn fleet_travels_over_time_and_arrives() {
         let mut state = GameState::new();
-        state.active_ship_hp = Some(SHIP_MAX_HP);
+        state.active_ships = vec![FleetShip { hp: SHIP_MAX_HP, weapon_damage: 0 }];
         let origin = state.fleet_location;
         // enemy_location is always a valid body index (the last planet), unlike an
         // arbitrary offset which could overshoot a randomly-generated small system.
@@ -616,7 +685,11 @@ mod tests {
         state.capital_location = 0;
         state.enemy_location = 3;
         state.fleet_location = 3; // fleet is holding the line at the enemy's location
-        state.active_ship_hp = Some(SHIP_MAX_HP); // a wreck wouldn't hold anything off
+        // A wreck wouldn't hold anything off, and a ship that dies to the enemy's
+        // counter-fire mid-test would stop defending — give it enough HP to outlast the
+        // whole test so this isolates "does engaging block the advance" from "does the
+        // defender survive combat" (see `defending_the_capital_prevents_the_siege`).
+        state.active_ships = vec![FleetShip { hp: 1_000_000, weapon_damage: 0 }];
 
         for _ in 0..(ENEMY_ADVANCE_INTERVAL * 2) {
             state.tick();
@@ -653,8 +726,7 @@ mod tests {
         // sibling concern) — give it enough HP to outlast the whole test regardless of the
         // enemy's per-tick counter-damage, so this test isolates "does defending block the siege"
         // from "does the defender survive combat".
-        state.active_ship_hp = Some(1_000_000);
-        state.active_ship_weapon_damage = Some(0); // don't accidentally win mid-test
+        state.active_ships = vec![FleetShip { hp: 1_000_000, weapon_damage: 0 }]; // don't accidentally win mid-test
 
         for _ in 0..(COLONY_MAX_HP * 2) {
             state.tick();

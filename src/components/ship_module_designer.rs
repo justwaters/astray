@@ -2,7 +2,7 @@ use color_eyre::owo_colors::OwoColorize;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Line;
-use ratatui::widgets::{Block, Borders, BorderType, List, ListState};
+use ratatui::widgets::{Block, Borders, BorderType, List, ListState, Paragraph};
 
 use crate::action::Action;
 use crate::components::Component;
@@ -28,6 +28,9 @@ pub struct ShipModuleDesigner {
     types_list_state: ListState,
     modules_list_state: ListState,
     state: WidgetState,
+    current_design: Option<String>,
+    ships_built: u32,
+    build_progress: Option<u32>,
 }
 
 impl Component for ShipModuleDesigner {
@@ -47,8 +50,13 @@ impl Component for ShipModuleDesigner {
                 }
             }
             Action::ContinueSelecting => {
-                self.state = WidgetState::SelectingModule;
-                return Ok(None)
+                if self.state == WidgetState::SelectingType && !self.module_types.is_empty() {
+                    self.state = WidgetState::SelectingModule;
+                    let type_name = self.module_types[
+                        self.types_list_state.selected().unwrap_or(0)
+                        ].0.clone();
+                    return Ok(Some(Action::ScheduleLoadShipModulesForType(type_name)))
+                }
             }
             Action::SelectNext => {
                 match self.state {
@@ -101,6 +109,37 @@ impl Component for ShipModuleDesigner {
                 }
             }
             Action::LoadShipModuleTypes(types) => { self.module_types = types }
+            Action::LoadShipModulesForType(modules) => {
+                self.modules = modules;
+                self.modules_list_state.select(
+                    if self.modules.is_empty() { None } else { Some(0) }
+                );
+            }
+            Action::Select => {
+                if self.state == WidgetState::SelectingModule && !self.modules.is_empty() {
+                    let name = self.modules[
+                        self.modules_list_state.selected().unwrap_or(0)
+                        ].0.clone();
+                    self.state = WidgetState::Normal;
+                    self.current_design = Some(name.clone());
+                    return Ok(Some(Action::DesignShipModule(name)))
+                }
+            }
+            Action::MainAction => {
+                if self.state == WidgetState::Normal
+                    && self.current_design.is_some()
+                    && self.build_progress.is_none() {
+                    return Ok(Some(Action::BuildShip))
+                }
+            }
+            Action::IngameTick => {
+                return Ok(Some(Action::ScheduleLoadShipyardInfo))
+            }
+            Action::LoadShipyardInfo(design, ships_built, progress) => {
+                self.current_design = design;
+                self.ships_built = ships_built;
+                self.build_progress = progress;
+            }
             _ => {}
         }
 
@@ -152,6 +191,57 @@ impl Component for ShipModuleDesigner {
 
 
         f.render_stateful_widget(types_list, a_chunks[0], &mut self.types_list_state);
+
+        let modules_list = List::new(
+            self.modules.iter().map(
+                |(i, c)| {
+                    Line::styled(
+                        i,
+                        Style::default().fg(*c),
+                    )
+                }
+            )
+        )
+            .highlight_symbol(">>")
+            .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded)
+                    .border_style(Style::default()
+                        .fg(if self.state == WidgetState::SelectingModule {
+                            Color::LightBlue
+                        } else {
+                            Color::White
+                        }))
+            );
+
+        f.render_stateful_widget(modules_list, a_chunks[1], &mut self.modules_list_state);
+
+        let mut info_lines = vec![
+            Line::from(format!(
+                "Current design: {}",
+                self.current_design.clone().unwrap_or_else(|| "None".to_string())
+            )),
+            Line::from(format!("Ships built: {}", self.ships_built)),
+        ];
+        info_lines.push(match self.build_progress {
+            Some(p) => Line::from(format!("Building... {p}%")),
+            None if self.current_design.is_some() => {
+                Line::from("Press <Alt-r> to build a ship")
+            }
+            None => Line::from("Research and design a sublight engine to get started"),
+        });
+
+        let shipyard_info = Paragraph::new(info_lines)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Rounded)
+                    .title("Shipyard")
+            );
+
+        f.render_widget(shipyard_info, a_chunks[2]);
 
         Ok(())
     }

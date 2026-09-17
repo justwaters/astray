@@ -8,6 +8,7 @@ use crate::tui::Frame;
 pub struct TopMenu {
     tabs: Vec<String>,
     selected: usize,
+    victory: bool,
 }
 
 impl Default for TopMenu {
@@ -15,6 +16,7 @@ impl Default for TopMenu {
         Self {
             tabs: vec![],
             selected: 1,
+            victory: false,
         }
     }
 }
@@ -40,6 +42,9 @@ impl Component for TopMenu {
                     self.selected = self.tabs.len() - 2;
                 }
             }
+            Action::Victory => {
+                self.victory = true;
+            }
             _ => {}
         }
 
@@ -55,11 +60,18 @@ impl Component for TopMenu {
             ],
         ).split(area);
 
+        let title = if self.victory {
+            " \u{1F3C6} VICTORY \u{2014} you designed and built your first starship! "
+        } else {
+            ""
+        };
+
         let tabs = Tabs::new(self.tabs.clone())
             .block(
                 Block::default()
                     .border_type(BorderType::Rounded)
                     .borders(Borders::ALL)
+                    .title(title)
             )
             .select(self.selected)
             .divider("|")

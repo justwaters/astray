@@ -24,11 +24,10 @@ impl ShipModuleManager {
         ShipModuleType::from(name)
     }
 
-    // pub fn get_ship_modules_by_type<T: ShipModule>(&self, module_type: ShipModuleType) -> Vec<T> {
-    //     let modules = match module_type {
-    //         ShipModuleType::SublightThruster => { self.sublight_engines.clone() }
-    //     };
-    // 
-    //     modules
-    // }
+    /// Returns `(name, is_unlocked, required_research_id)` for every sublight engine design.
+    pub fn get_sublight_engine_designs(&self) -> Vec<(String, bool, Option<String>)> {
+        self.sublight_engines.iter()
+            .map(|e| (e.name().clone(), *e.is_unlocked(), e.required_research_id().clone()))
+            .collect()
+    }
 }

@@ -183,4 +183,8 @@ impl ResearchManager {
     pub fn get_research_progress(&self, id: String) -> u32 {
         self.get_research_by_id(id).percent_complete() as u32
     }
+
+    pub fn is_research_finished(&self, id: String) -> bool {
+        self.get_research_by_id(id).is_finished()
+    }
 }

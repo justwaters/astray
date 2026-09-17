@@ -44,6 +44,7 @@ pub struct App {
   game_unpaused: bool,
   game_tickrate_ratio: u32,
   game_tick_counter: u32,
+  victory_announced: bool,
 }
 
 impl App {
@@ -84,6 +85,7 @@ impl App {
       game_unpaused: true,
       game_tickrate_ratio: 10,
       game_tick_counter: 0,
+      victory_announced: false,
     })
   }
 
@@ -165,6 +167,10 @@ impl App {
           },
           Action::IngameTick => {
             self.state.tick();
+            if !self.victory_announced && self.state.has_won() {
+              self.victory_announced = true;
+              action_tx.send(Action::Victory)?;
+            }
           }
           Action::Quit => self.should_quit = true,
           Action::Suspend => self.should_suspend = true,
@@ -325,6 +331,23 @@ impl App {
                 ).collect()
               )
             )?;
+          },
+          Action::ScheduleLoadShipModulesForType(ref type_name) => {
+            action_tx.send(
+              Action::LoadShipModulesForType(
+                self.state.get_ship_modules_for_type(type_name.clone())
+              )
+            )?;
+          },
+          Action::DesignShipModule(ref name) => {
+            self.state.set_ship_design(name.clone());
+          },
+          Action::BuildShip => {
+            self.state.build_ship();
+          },
+          Action::ScheduleLoadShipyardInfo => {
+            let (design, ships_built, progress) = self.state.get_shipyard_info();
+            action_tx.send(Action::LoadShipyardInfo(design, ships_built, progress))?;
           },
           _ => {},
         }

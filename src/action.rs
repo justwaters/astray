@@ -42,6 +42,7 @@ pub enum Action {
   LoadConstructionInfo(Vec<(String, u32)>),
   LoadShipModuleTypes(Vec<(String, Color)>),
   LoadShipModulesForType(Vec<(String, Color)>),
+  LoadShipyardInfo(Option<String>, u32, Option<u32>),
 
   // Scheduling
   ScheduleLoadSystemView,
@@ -51,6 +52,7 @@ pub enum Action {
   ScheduleLoadConstructionInfo(String),
   ScheduleLoadShipModuleTypes,
   ScheduleLoadShipModulesForType(String),
+  ScheduleLoadShipyardInfo,
 
   // Navigation
   NavigateNextTab,
@@ -75,5 +77,8 @@ pub enum Action {
   EnterSystemMapNavigation,
   StartResearch(String),
   StartSelectingBuilding,
-  StartConstruction((String /* Colony name */, String /* Building type name */))
+  StartConstruction((String /* Colony name */, String /* Building type name */)),
+  DesignShipModule(String),
+  BuildShip,
+  Victory,
 }

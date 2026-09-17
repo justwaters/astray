@@ -7,8 +7,17 @@
 
 ## 🧐 Features
 - Unique UI design
-- Fully customisable spaceships and spaceship parts (coming soon)
-- Real orbit calculations and maneuvers (coming soon)
+- A research tree that unlocks new ship modules over time
+- Colony management with resource ticks and building construction
+- Design and build a starship from unlocked modules
+- Real orbital mechanics for celestial bodies (orbit radius/period derived from orbital velocity)
+
+## 🎮 How to play
+1. Open the **Research** tab, select a field, and start researching a technology (e.g. Ion Drive)
+2. Open the **Colonies** tab to grow your capital colony and queue up buildings
+3. Once a technology unlocks a ship module, open the **Ship modules** tab, select its type, then the module, and press Enter to finalize a design
+4. Press `<Alt-r>` in the Ship modules tab to build a ship from your current design
+5. Building your first ship wins the game — watch for the victory banner
 
 ## 🛠️ Installation
 ```

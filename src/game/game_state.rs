@@ -6,8 +6,12 @@ use crate::game::celestial_bodies::solar_system::SolarSystem;
 use crate::game::colony::building::BuildingType;
 use crate::game::colony::colony::Colony;
 use crate::game::research::research_manager::ResearchManager;
+use crate::game::shipbuilding::ship::Ship;
 use crate::game::shipbuilding::ship_module::ShipModuleType;
 use crate::game::shipbuilding::ship_module_manager::ShipModuleManager;
+
+/// Number of in-game ticks it takes to build a ship once a design is chosen.
+const SHIP_BUILD_TIME: u32 = 20;
 
 pub struct GameState {
     systems: Vec<SolarSystem>,
@@ -18,6 +22,9 @@ pub struct GameState {
     resource_tick_counter: u32,
     research_manager: ResearchManager,
     ship_module_manager: ShipModuleManager,
+    ships: Vec<Ship>,
+    ship_design: Option<String>,
+    ship_build_progress: Option<u32>,
 }
 
 impl Default for GameState {
@@ -47,6 +54,9 @@ impl Default for GameState {
             research_manager: ResearchManager::new(),
 
             ship_module_manager: ShipModuleManager::new(),
+            ships: Vec::new(),
+            ship_design: None,
+            ship_build_progress: None,
         }
     }
 }
@@ -56,6 +66,7 @@ impl GameState {
         self.update_research();
         self.update_colonies();
         self.update_orbits();
+        self.update_shipyard();
     }
 
     pub fn new() -> Self {
@@ -113,6 +124,19 @@ impl GameState {
         }
     }
 
+    fn update_shipyard(&mut self) {
+        if let Some(progress) = self.ship_build_progress {
+            let progress = progress + 1;
+            if progress >= SHIP_BUILD_TIME {
+                let design = self.ship_design.clone().unwrap();
+                self.ships.push(Ship::new(design));
+                self.ship_build_progress = None;
+            } else {
+                self.ship_build_progress = Some(progress);
+            }
+        }
+    }
+
     pub fn get_colonies(&self) -> Vec<Colony> {
         self.colonies.clone()
     }
@@ -130,11 +154,72 @@ impl GameState {
         self.ship_module_manager.get_ship_module_types()
     }
 
-    // pub fn get_ship_module_type_by_name(&self, name: String) -> ShipModuleType {
-    //     self.ship_module_manager.get_ship_module_type_by_name(name)
-    // }
-    //
-    // pub fn get_ship_modules_by_type<T: ShipModule>(&self, module_type: ShipModuleType) -> Vec<T> {
-    //     self.ship_module_manager.get_ship_modules_by_type(module_type)
-    // }
+    /// Returns the sublight engine designs available to the player for the given module
+    /// type, i.e. those that are unlocked by default or whose required research is finished.
+    pub fn get_ship_modules_for_type(&self, _type_name: String) -> Vec<(String, Color)> {
+        self.ship_module_manager.get_sublight_engine_designs().into_iter()
+            .filter(|(_, is_unlocked, required_research_id)| {
+                *is_unlocked || required_research_id.as_ref()
+                    .is_some_and(|id| self.research_manager.is_research_finished(id.clone()))
+            })
+            .map(|(name, _, _)| (name, Color::White))
+            .collect()
+    }
+
+    pub fn set_ship_design(&mut self, name: String) {
+        self.ship_design = Some(name);
+    }
+
+    pub fn build_ship(&mut self) {
+        if self.ship_design.is_some() && self.ship_build_progress.is_none() {
+            self.ship_build_progress = Some(0);
+        }
+    }
+
+    /// Returns `(current design, ships built, build progress %)`.
+    pub fn get_shipyard_info(&self) -> (Option<String>, u32, Option<u32>) {
+        let progress_percent = self.ship_build_progress
+            .map(|p| (p * 100 / SHIP_BUILD_TIME).min(100));
+        (self.ship_design.clone(), self.ships.len() as u32, progress_percent)
+    }
+
+    pub fn has_won(&self) -> bool {
+        !self.ships.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn research_unlocks_ship_module_and_building_it_wins() {
+        let mut state = GameState::new();
+
+        assert!(state.get_ship_modules_for_type("Sublight Thruster".to_string()).is_empty());
+        assert!(!state.has_won());
+
+        state.start_research("ion-drive".to_string());
+        for _ in 0..100 {
+            state.tick();
+        }
+
+        let modules = state.get_ship_modules_for_type("Sublight Thruster".to_string());
+        assert_eq!(modules.len(), 1);
+        assert_eq!(modules[0].0, "Ion drive");
+
+        state.set_ship_design(modules[0].0.clone());
+        state.build_ship();
+        assert!(!state.has_won());
+
+        for _ in 0..SHIP_BUILD_TIME {
+            state.tick();
+        }
+
+        assert!(state.has_won());
+        let (design, ships_built, progress) = state.get_shipyard_info();
+        assert_eq!(design, Some("Ion drive".to_string()));
+        assert_eq!(ships_built, 1);
+        assert_eq!(progress, None);
+    }
 }

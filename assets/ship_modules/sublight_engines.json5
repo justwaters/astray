@@ -6,6 +6,7 @@
       { "name": "Nozzle throughput" },
       { "name": "Ionization power" }
     ],
-    "is_unlocked": false
+    "is_unlocked": false,
+    "required_research_id": "ion-drive"
   }
 ]

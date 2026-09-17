@@ -5,7 +5,6 @@ edition = "2021"
 description = "A TUI-based replica of Aurora 4X"
 repository = "https://github.com/Vinermy/astray"
 authors = ["Vinermy <egorkosachev@vk.com>"]
-build = "build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

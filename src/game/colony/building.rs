@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::game::celestial_bodies::Displayable;
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone, Hash)]
 pub enum FactoryType {
     // Primary resources to secondary resources
@@ -23,9 +24,9 @@ pub enum FactoryType {
     FuelRodsFactory,
 }
 
-impl Into<String> for FactoryType {
-    fn into(self) -> String {
-        match self {
+impl From<FactoryType> for String {
+    fn from(val: FactoryType) -> Self {
+        match val {
             FactoryType::ElectronicsFactory => { "Electronics factory".to_string() }
             FactoryType::KeroseneFactory => { "Kerosene factory".to_string() }
             FactoryType::HeatResistantAlloyFactory => { "Heat resistant alloy factory".to_string() }
@@ -67,9 +68,9 @@ pub enum BuildingType {
     DryDock,
 }
 
-impl Into<Color> for BuildingType {
-    fn into(self) -> Color {
-        match self {
+impl From<BuildingType> for Color {
+    fn from(val: BuildingType) -> Self {
+        match val {
             BuildingType::Mine => Color::LightYellow,
             BuildingType::Factory(_) => Color::LightRed,
             BuildingType::Spaceport => Color::LightCyan,
@@ -78,9 +79,9 @@ impl Into<Color> for BuildingType {
     }
 }
 
-impl Into<String> for BuildingType {
-    fn into(self) -> String {
-        match self {
+impl From<BuildingType> for String {
+    fn from(val: BuildingType) -> Self {
+        match val {
             BuildingType::Mine => { "Mine".to_string() }
             BuildingType::Factory(factory_type) => { factory_type.into() }
             BuildingType::Spaceport => { "Spaceport".to_string() }

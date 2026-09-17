@@ -40,9 +40,9 @@ pub enum ResourceType {
     CFuelRods,
 }
 
-impl Into<ResourceGrade> for ResourceType {
-    fn into(self) -> ResourceGrade {
-        match self {
+impl From<ResourceType> for ResourceGrade {
+    fn from(val: ResourceType) -> Self {
+        match val {
             ResourceType::PRLightMetals => ResourceGrade::Primary,
             ResourceType::PRHeavyMetals => ResourceGrade::Primary,
             ResourceType::PRPreciousMetals => ResourceGrade::Primary,
@@ -66,9 +66,9 @@ impl Into<ResourceGrade> for ResourceType {
     }
 }
 
-impl Into<String> for ResourceType {
-    fn into(self) -> String {
-        match self {
+impl From<ResourceType> for String {
+    fn from(val: ResourceType) -> Self {
+        match val {
             ResourceType::PRLightMetals => { "Light metals" }
             ResourceType::PRHeavyMetals => { "Heavy metals" }
             ResourceType::PRPreciousMetals => { "Precious metals" }
@@ -113,9 +113,9 @@ impl From<BuildingType> for Option<Vec<ResourceTransaction>> {
     }
 }
 
-impl Into<Vec<ResourceTransaction>> for FactoryType {
-    fn into(self) -> Vec<ResourceTransaction> {
-        match self {
+impl From<FactoryType> for Vec<ResourceTransaction> {
+    fn from(val: FactoryType) -> Self {
+        match val {
 
             // Secondary resources
             FactoryType::ElectronicsFactory => {
@@ -239,14 +239,14 @@ impl ResourceDeposit {
         let mut rng = thread_rng();
 
         let weights: Vec<i32> = self.amounts.iter().map(
-            |(rt, w)| { w.clone() }
+            |(rt, w)| { *w }
         ).collect();
 
         let choices: Vec<ResourceType> = self.amounts.iter().map(
             |(rt, w)| { rt.clone() }
         ).collect();
 
-        let mut dist = WeightedIndex::new(
+        let dist = WeightedIndex::new(
             weights
         ).unwrap();
 

@@ -89,7 +89,7 @@ impl CelestialBody for Planet {
             name,
             mass: OrderedFloat(mass),
             radius: OrderedFloat(radius),
-            orbit_radius: OrderedFloat(orbit_radius.clone()),
+            orbit_radius: OrderedFloat(orbit_radius),
             orbit_period: OrderedFloat(orbit_period),
             habitable_zone: RangeInclusive::new(
                 OrderedFloat(*habitable_zone.start()),

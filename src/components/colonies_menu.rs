@@ -15,26 +15,26 @@ use crate::tui::Frame;
 ///
 /// **Fields**
 /// - is_initialised (`bool`) - is used for initial data loading, `false` if data was never
-/// loaded, `true` otherwise
+///   loaded, `true` otherwise
 /// - colonies (`Vec<String>`) - holds a list of colonies (by names)
 /// - list_state (`ListState`) - holds the current state of the colonies list widget
 /// - selected_colony (`Option<String>`) - holds the name of the currently selected colony or
-/// `None` if no colony is selected
-/// - is_focused (`bool`) - `true` if the colonies list is active, `false` otherwise, used for 
-/// the border color of said list
+///   `None` if no colony is selected
+/// - is_focused (`bool`) - `true` if the colonies list is active, `false` otherwise, used for
+///   the border color of said list
 /// - is_building_focused (`bool`) - `true` is the building list is selected, `false` otherwise,
-/// used for the border color
+///   used for the border color
 /// - buildings_list_state (`ListState`) - holds the current state of the buildings list widget
 /// - buildings_list (`Vec<(String, u32, Color)>`) - holds the entries of the buildings list:
 ///     - `String` - name of the building
 ///     - `u32` - amount of buildings
 ///     - `Color` - color of the list entry
-/// - info (`Vec<(String, Color)>`) - holds the information about the currently selected colony, 
-/// separated into individual lines:
+/// - info (`Vec<(String, Color)>`) - holds the information about the currently selected colony,
+///   separated into individual lines:
 ///     - `String` - text
 ///     - `Color` - color it should be displayed with
-/// - construction_info (`Vec<(String, u32)>`) - holds information about active and scheduled 
-/// construction projects:
+/// - construction_info (`Vec<(String, u32)>`) - holds information about active and scheduled
+///   construction projects:
 ///     - `String` - name of the building
 ///     - `u32` - progress in %
 pub struct ColoniesMenu {

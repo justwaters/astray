@@ -125,7 +125,7 @@ impl BuildingManager {
             (
                 building_type.get_name(),
                 *self.buildings.get(building_type).unwrap_or(&0),
-                color.clone()
+                *color
             )
         ).collect();
 

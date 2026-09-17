@@ -12,9 +12,9 @@
 
 ## 🛠️ Installation
 ```
-1. Download the latest release from GitHub
+1. Download the latest release for your platform (macOS, Linux, or Windows) from GitHub
 2. Unzip the archive
-3. Launch the astray.exe file
+3. Run the astray executable — it's self-contained, so it can be moved or added to your PATH
 ```
 
 ## 🍰 Contributing

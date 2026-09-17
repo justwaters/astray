@@ -79,9 +79,7 @@ impl CelestialBody for Star {
             0.2,
         ).unwrap().sample(&mut rng);
 
-        let mass = mass_solar
-            .min(10.0)
-            .max(0.1) * consts::SUN_M_KG;
+        let mass = mass_solar.clamp(0.1, 10.0) * consts::SUN_M_KG;
 
         let luminosity = astrophysics::calculate_luminosity_from_mass(mass);
         let radius: f32 = astrophysics::calculate_star_radius_from_mass(mass);

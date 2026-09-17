@@ -34,12 +34,10 @@ impl From<String> for ShipModuleType {
 pub trait ShipModule {
     fn get_traits(&self) -> Vec<ModuleTrait>;
 
-    fn load_from_file<T>(filepath: &str) -> Vec<T>
+    fn load_from_str<T>(json: &str) -> Vec<T>
     where
         T: ShipModule + DeserializeOwned,
     {
-        let file_contents = std::fs::read_to_string(filepath).unwrap();
-
-        serde_json::from_str(&file_contents).unwrap()
+        serde_json::from_str(json).unwrap()
     }
 }

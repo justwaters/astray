@@ -5,13 +5,11 @@ pub struct ShipModuleManager {
     sublight_engines: Vec<SublightEngine>,
 }
 
-const SHIP_MODULES_PATH: &str = "./assets/ship_modules/";
-
 impl ShipModuleManager {
     pub fn new() -> Self {
         Self {
-            sublight_engines: SublightEngine::load_from_file(
-                (SHIP_MODULES_PATH.to_string() + "sublight_engines.json5").as_str()
+            sublight_engines: SublightEngine::load_from_str(
+                include_str!("../../../assets/ship_modules/sublight_engines.json5")
             ),
         }
     }

@@ -11,17 +11,14 @@ use crate::tabs::Tabs;
 use crate::tui::Frame;
 
 #[derive(PartialEq)]
+#[derive(Default)]
 enum WidgetState {
+    #[default]
     Normal,
     SelectingType,
     SelectingModule,
 }
 
-impl Default for WidgetState {
-    fn default() -> Self {
-        Self::Normal
-    }
-}
 
 #[derive(Default)]
 pub struct ShipModuleDesigner {

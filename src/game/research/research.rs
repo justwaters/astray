@@ -30,12 +30,10 @@ pub struct Research {
 }
 
 impl ResearchField {
-    pub fn load_from_file(filepath: &str, research_path: &str) -> Vec<Self> {
-        let mut objects: Vec<Self> = serde_json::from_str(
-            &std::fs::read_to_string(filepath).unwrap()
-        ).unwrap();
+    pub fn load_from_str(fields_json: &str, research_json: &str) -> Vec<Self> {
+        let mut objects: Vec<Self> = serde_json::from_str(fields_json).unwrap();
 
-        let researches = Research::load_from_file(research_path);
+        let researches = Research::load_from_str(research_json);
 
         info!("Loaded research fields: {:?}", objects);
         info!("Loaded research objects: {:?}", researches);
@@ -56,8 +54,8 @@ impl ResearchField {
 }
 
 impl Research {
-    pub fn load_from_file(filepath: &str) -> Vec<Self> {
-        serde_json::from_str(&std::fs::read_to_string(filepath).unwrap()).unwrap()
+    pub fn load_from_str(research_json: &str) -> Vec<Self> {
+        serde_json::from_str(research_json).unwrap()
     }
 
     pub fn is_finished(&self) -> bool {
@@ -143,7 +141,7 @@ impl Displayable for ResearchField {
         let finished_research = self.finished_research().len() as f32;
 
         if total_research == 0.0 {
-            return Color::Gray;
+            Color::Gray
         } else {
             match (finished_research * 100f32 / total_research) as i32 {
                 0..=10 => LightRed,
@@ -181,7 +179,7 @@ impl Displayable for Research {
     fn get_menu_color(&self) -> Color {
         match self.percent_complete() as i32 {
             0..=25 => LightRed,
-            25..=75 => LightYellow,
+            26..=75 => LightYellow,
             76..=99 => LightGreen,
             _ => LightCyan,
         }

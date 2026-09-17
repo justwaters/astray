@@ -5,13 +5,12 @@ pub mod planet;
 pub mod solar_system;
 
 mod constants {
-    use std::fs;
-
     use once_cell::sync::Lazy;
 
+    const STAR_NAMELIST: &str = include_str!("../../assets/namelists/star_namelist.txt");
+
     pub static STAR_NAMES: Lazy<Vec<String>> = Lazy::new(|| {
-        fs::read_to_string("./assets/namelists/star_namelist.txt").unwrap
-        ().split("\r\n").map(|s| s.to_string()).collect()
+        STAR_NAMELIST.split("\r\n").map(|s| s.to_string()).collect()
     });
 }
 
@@ -82,8 +81,8 @@ pub trait Orbitable {
     /// * `self` - A reference to the object
     /// 
     /// # Returns
-    /// * `Vec<Self::SatelliteType>` - A vector containing all the 
-    /// satellites that orbit the object
+    /// * `Vec<Self::SatelliteType>` - A vector containing all the
+    ///   satellites that orbit the object
     fn get_satellites(&self) -> Vec<Self::SatelliteType>;
 
     fn update_orbits(&mut self);

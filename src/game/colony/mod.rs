@@ -1,3 +1,4 @@
+#[allow(clippy::module_inception)]
 pub mod colony;
 pub mod building;
 mod building_manager;

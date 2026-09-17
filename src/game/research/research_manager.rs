@@ -11,9 +11,9 @@ pub struct ResearchManager {
 impl Default for ResearchManager {
     fn default() -> Self {
         Self {
-            research_fields: ResearchField::load_from_file(
-                "assets/research_fields.json5",
-                "assets/research.json5",
+            research_fields: ResearchField::load_from_str(
+                include_str!("../../../assets/research_fields.json5"),
+                include_str!("../../../assets/research.json5"),
             ),
         }
     }
@@ -111,7 +111,6 @@ impl ResearchManager {
             .filter(|r| {
                 research.required_all().contains(r.id())
             })
-            .cloned()
             .map(|r| {
                 (r.name().clone(), r.is_finished())
             })
@@ -126,7 +125,6 @@ impl ResearchManager {
             .filter(|r| {
                 research.required_any().contains(r.id())
             })
-            .cloned()
             .map(|r| {
                 (r.name().clone(), r.is_finished())
             })

@@ -25,11 +25,21 @@
 7. Don't dawdle: if you never engage it, the enemy periodically advances toward your home planet (watch the **Fleet** panel in System View for a countdown) and, once it arrives, sieges your colony each tick until either you intercept it or the colony's HP hits 0 — losing the colony loses the game
 
 ## 🛠️ Installation
+
+### From source
+Requires [Rust](https://rustup.rs) (the pinned toolchain is `stable`, see `rust-toolchain.toml`):
+```bash
+git clone https://github.com/justwaters/astray.git
+cd astray
+cargo install --path .
 ```
-1. Download the latest release for your platform (macOS, Linux, or Windows) from GitHub
-2. Unzip the archive
-3. Run the astray executable — it's self-contained, so it can be moved or added to your PATH
+This installs the `astray` binary to `~/.cargo/bin`, which is self-contained and can be freely moved or symlinked elsewhere. Make sure `~/.cargo/bin` is on your `PATH`, then run:
+```bash
+astray
 ```
+
+### From a release
+Once a version is tagged, the [CD workflow](.github/workflows/cd.yml) builds macOS, Linux, and Windows binaries and attaches them to the [GitHub Releases page](https://github.com/justwaters/astray/releases). Download the archive for your platform, unzip it, and run the extracted binary directly — no separate `assets/` folder needed.
 
 ## 🍰 Contributing
 Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.

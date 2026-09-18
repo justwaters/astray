@@ -10,7 +10,7 @@ mod constants {
     const STAR_NAMELIST: &str = include_str!("../../assets/namelists/star_namelist.txt");
 
     pub static STAR_NAMES: Lazy<Vec<String>> = Lazy::new(|| {
-        STAR_NAMELIST.split("\r\n").map(|s| s.to_string()).collect()
+        STAR_NAMELIST.lines().map(|s| s.to_string()).collect()
     });
 }
 

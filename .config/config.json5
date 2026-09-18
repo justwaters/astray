@@ -10,7 +10,14 @@
       "<BackTab>": "NavigatePrevTab",
       "<Alt-r>": "MainAction",
       "<Alt-f>": "SecondaryAction",
-      "<Alt-h>": "Help"
+      "<Alt-h>": "Help",
+      // Plain-letter fallbacks for the Alt-shortcuts above: some terminals (notably
+      // macOS Terminal.app, by default) don't send Option/Alt as a Meta sequence,
+      // which would otherwise make every Alt-bound action silently do nothing.
+      "<s>": "StartSelecting",
+      "<r>": "MainAction",
+      "<f>": "SecondaryAction",
+      "<h>": "Help"
     },
     "Help": {
       "<Enter>": "Select",

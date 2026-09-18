@@ -16,12 +16,17 @@
 - Real orbital mechanics for celestial bodies (orbit radius/period derived from orbital velocity)
 
 ## 🎮 How to play
-Press `<Alt-h>` in-game any time for a full how-to-play screen (`<Enter>` or `<Esc>` to close it). Summary:
+A how-to-play screen (goal, walkthrough, symbol/color legend, and keybindings) opens automatically the
+first time you launch the game — press `<Enter>` or `<Esc>` to dismiss it, and `<Alt-h>` (or plain `h`)
+to reopen it any time. Every Alt-shortcut below also has a plain-letter fallback (`<s>`, `<r>`, `<f>`,
+`<h>`), since some terminals — notably macOS Terminal.app by default — don't send Option/Alt as a Meta
+key, which would otherwise make the Alt-shortcuts silently do nothing.
+
 1. Open the **Research** tab and research an engine (e.g. Ion Drive) and a weapon (e.g. Ion Cannon)
 2. Open the **Colonies** tab to grow your capital colony and queue up mines and factories — a ship needs both Engine Nozzles (via a Heat Resistant Alloy factory chain) and Microprocessors (via a Superconductors + Electronics chain) to build
 3. Once research unlocks a module, open the **Ship modules** tab, select its type, then the module, and press Enter to finalize a design — you need both an engine and a weapon design
-4. Press `<Alt-r>` in the Ship modules tab to build a ship from your current designs — press it again any time to build another and grow your fleet, even mid-fight
-5. Your fleet starts at your home planet, while the enemy guards the outermost planet in the system — open the **System View** tab, press `<Alt-s>` and the arrow keys to highlight a body, then `<Alt-r>` to send your fleet there. Travel takes time
+4. Press `<Alt-r>`/`<r>` in the Ship modules tab to build a ship from your current designs — press it again any time to build another and grow your fleet, even mid-fight
+5. Your fleet starts at your home planet, while the enemy guards the outermost planet in the system — open the **System View** tab, press `<Alt-s>`/`<s>` and the arrow keys to highlight a body, then `<Alt-r>`/`<r>` to send your fleet there. Travel takes time
 6. Once your fleet reaches the enemy's location, combat resolves automatically each tick — every surviving ship fires at once, stacking damage, while the enemy's counter-fire always hits whichever ship is at the front of the fleet until it's destroyed. Sometimes a second, much tougher escort is guarding alongside the standard enemy — check the Shipyard panel's "Enemy fleet" line before you commit, since it keeps firing even while you're still working through the weaker one. Wipe out every enemy ship to win; if your whole fleet is destroyed first, build more ships and send them back to finish the job
 7. Don't dawdle: if you never engage it, the enemy periodically advances toward your home planet (watch the **Fleet** panel in System View for a countdown) and, once it arrives, sieges your colony each tick until either you intercept it or the colony's HP hits 0 — losing the colony loses the game
 

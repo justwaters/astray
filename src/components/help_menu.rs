@@ -8,9 +8,16 @@ use crate::components::Component;
 use crate::tabs::Tabs;
 use crate::tui::Frame;
 
-#[derive(Default)]
 pub struct HelpMenu {
     visible: bool,
+}
+
+impl Default for HelpMenu {
+    fn default() -> Self {
+        // Shown automatically as the startup splash screen; App::new() also starts in
+        // Mode::Help so <Enter>/<Esc> can dismiss it immediately.
+        Self { visible: true }
+    }
 }
 
 /// Carves a centered rectangle of the given percentage size out of `area`.
@@ -54,42 +61,53 @@ impl Component for HelpMenu {
             return Ok(())
         }
 
-        let popup = centered_rect(70, 80, area);
+        let popup = centered_rect(80, 90, area);
 
         let lines = vec![
+            Line::styled("Welcome to Astray", Style::default().add_modifier(Modifier::BOLD)),
+            Line::from(""),
             Line::styled("Goal", Style::default().add_modifier(Modifier::BOLD)),
             Line::from("Your colony's system holds an enemy fleet guarding the outer planets. Build a"),
             Line::from("warship, destroy every enemy ship, and don't let the enemy reach your colony first."),
             Line::from(""),
             Line::styled("1. Research", Style::default().add_modifier(Modifier::BOLD)),
-            Line::from("Research tab: pick a field, then a technology, <Alt-r> to start it. You need an"),
+            Line::from("Research tab: pick a field, then a technology, <Alt-r>/<r> to start it. You need an"),
             Line::from("engine (e.g. Ion Drive) and a weapon (e.g. Ion Cannon)."),
             Line::from(""),
             Line::styled("2. Economy", Style::default().add_modifier(Modifier::BOLD)),
-            Line::from("Colonies tab: <Alt-s> to select your colony, <Alt-r> to queue mines and factories."),
-            Line::from("A ship costs Engine Nozzles (Heat Resistant Alloy chain) and Microprocessors"),
-            Line::from("(Superconductors + Electronics chain)."),
+            Line::from("Colonies tab: <Alt-s>/<s> to select your colony, <Alt-r>/<r> to queue mines and"),
+            Line::from("factories. A ship costs Engine Nozzles (Heat Resistant Alloy chain) and"),
+            Line::from("Microprocessors (Superconductors + Electronics chain)."),
             Line::from(""),
             Line::styled("3. Design & build", Style::default().add_modifier(Modifier::BOLD)),
-            Line::from("Ship modules tab: <Alt-s> to pick a type then a module, Enter to confirm a design."),
-            Line::from("You need both an engine and a weapon design, then <Alt-r> to build a ship. Build"),
-            Line::from("more ships any time to grow your fleet — more ships means more combined firepower"),
-            Line::from("and more HP to absorb the enemy's counter-fire."),
+            Line::from("Ship modules tab: <Alt-s>/<s> to pick a type then a module, Enter to confirm a"),
+            Line::from("design. You need both an engine and a weapon design, then <Alt-r>/<r> to build a"),
+            Line::from("ship. Build more ships any time to grow your fleet — more ships means more"),
+            Line::from("combined firepower and more HP to absorb the enemy's counter-fire."),
             Line::from(""),
             Line::styled("4. Move & fight", Style::default().add_modifier(Modifier::BOLD)),
-            Line::from("System View tab: <Alt-s> plus arrow keys to highlight a body, <Alt-r> to send your"),
-            Line::from("fleet there. Travel takes time. Reaching the enemy's location starts combat"),
-            Line::from("automatically each tick. Watch for a rare, much tougher escort alongside the"),
-            Line::from("standard enemy — it keeps firing even while you're still working through the other one."),
+            Line::from("System View tab: <Alt-s>/<s> plus arrow keys to highlight a body, <Alt-r>/<r> to"),
+            Line::from("send your fleet there. Travel takes time. Reaching the enemy's location starts"),
+            Line::from("combat automatically each tick. Watch for a rare, much tougher escort alongside"),
+            Line::from("the standard enemy — it keeps firing even while you're still working through the"),
+            Line::from("other one."),
             Line::from(""),
             Line::styled("5. Don't dawdle", Style::default().add_modifier(Modifier::BOLD)),
             Line::from("If you never engage it, the enemy periodically advances toward your colony (watch"),
             Line::from("the Fleet panel for a countdown) and sieges it on arrival. Losing the colony loses"),
             Line::from("the game; destroying every enemy ship wins it."),
             Line::from(""),
+            Line::styled("Symbols & colors", Style::default().add_modifier(Modifier::BOLD)),
+            Line::from(">> marks the highlighted item in a list."),
+            Line::from("Planet colors: green = habitable, yellow = too close, red = too far."),
+            Line::from("Research colors: gray = locked, red/yellow/green/cyan = rising completion."),
+            Line::from("Resource colors: gray = primary, yellow = secondary, cyan = component."),
+            Line::from("A red \u{26A0} warning and a red colony HP reading mean you're under siege right now."),
+            Line::from(""),
             Line::styled("Keys", Style::default().add_modifier(Modifier::BOLD)),
-            Line::from("<Tab>/<Shift+Tab> switch tabs   <Alt-s> select/start selecting   <Alt-r> main action"),
-            Line::from("<Alt-f> secondary action   <Esc> cancel a selection   <q>/<Ctrl-c> quit"),
+            Line::from("<Tab>/<Shift+Tab> switch tabs   <Alt-s>/<s> select/start selecting"),
+            Line::from("<Alt-r>/<r> main action   <Alt-f>/<f> secondary action"),
+            Line::from("<Esc> cancel a selection   <q>/<Ctrl-c> quit   <Alt-h>/<h> reopen this screen"),
             Line::from(""),
             Line::styled(
                 "Press <Enter> or <Esc> to close this screen",

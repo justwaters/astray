@@ -60,7 +60,10 @@ impl App {
     let help_menu = HelpMenu::default();
 
     let config = Config::new()?;
-    let mode = Mode::Main;
+    // Start in Help mode so the startup splash screen (shown by HelpMenu's Default
+    // impl) can be dismissed immediately with <Enter>/<Esc>, without requiring the
+    // player to already know a keybinding to close it.
+    let mode = Mode::Help;
     Ok(Self {
       tick_rate,
       frame_rate,

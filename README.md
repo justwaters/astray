@@ -16,6 +16,7 @@
 - Real orbital mechanics for celestial bodies (orbit radius/period derived from orbital velocity)
 
 ## 🎮 How to play
+Press `<Alt-h>` in-game any time for a full how-to-play screen (`<Enter>` or `<Esc>` to close it). Summary:
 1. Open the **Research** tab and research an engine (e.g. Ion Drive) and a weapon (e.g. Ion Cannon)
 2. Open the **Colonies** tab to grow your capital colony and queue up mines and factories — a ship needs both Engine Nozzles (via a Heat Resistant Alloy factory chain) and Microprocessors (via a Superconductors + Electronics chain) to build
 3. Once research unlocks a module, open the **Ship modules** tab, select its type, then the module, and press Enter to finalize a design — you need both an engine and a weapon design

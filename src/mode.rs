@@ -12,4 +12,5 @@ pub enum Mode {
   SystemMapNavigation,
   SelectingShipModuleType,
   SelectingShipModule,
+  Help,
 }

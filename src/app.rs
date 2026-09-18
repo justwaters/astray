@@ -17,6 +17,7 @@ use crate::{
   tui,
 };
 use crate::components::colonies_menu::ColoniesMenu;
+use crate::components::help_menu::HelpMenu;
 use crate::components::research_menu::ResearchMenu;
 use crate::components::ship_module_designer::ShipModuleDesigner;
 use crate::components::system_menu::SystemMenu;
@@ -56,6 +57,7 @@ impl App {
     let top_menu = TopMenu::default();
     let colonies_menu = ColoniesMenu::default();
     let ship_modules = ShipModuleDesigner::default();
+    let help_menu = HelpMenu::default();
 
     let config = Config::new()?;
     let mode = Mode::Main;
@@ -69,6 +71,7 @@ impl App {
         Box::new(colonies_menu),
         Box::new(ship_modules),
         Box::new(fps),
+        Box::new(help_menu),
       ],
       should_quit: false,
       should_suspend: false,
@@ -219,6 +222,9 @@ impl App {
               }
             })?;
           },
+          Action::Help => {
+            self.mode = Mode::Help;
+          }
           Action::StartSelecting => {
             self.mode = match self.tabs[self.cur_tab] {
               Tabs::SystemView => { SelectingBodyInSystemTree }

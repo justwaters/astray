@@ -67,16 +67,13 @@ impl Component for TopMenu {
 
         let mut banners = Vec::new();
         if self.victory {
-            banners.push("\u{1F3C6} VICTORY \u{2014} you built a warship and destroyed the enemy!");
+            banners.push("\u{1F3C6} VICTORY \u{2014} you built a warship and destroyed the enemy!".to_string());
         }
         if self.defeat {
-            banners.push("\u{1F480} DEFEAT \u{2014} the enemy destroyed your colony!");
+            banners.push("\u{1F480} DEFEAT \u{2014} the enemy destroyed your colony!".to_string());
         }
-        let title = if banners.is_empty() {
-            String::new()
-        } else {
-            format!(" {} ", banners.join(" | "))
-        };
+        banners.push("Press <Alt-h> for help".to_string());
+        let title = format!(" {} ", banners.join(" | "));
 
         let tabs = Tabs::new(self.tabs.clone())
             .block(

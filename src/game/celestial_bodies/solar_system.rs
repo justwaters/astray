@@ -132,10 +132,15 @@ impl Displayable for SolarSystem {
 }
 
 impl SolarSystem {
+    /// Draws the system map. `enemy_location`/`fleet_location` are body indices in the
+    /// same scheme used everywhere else (0 = star, 1..=n = planets in orbit order); a
+    /// marker is overlaid on whichever body currently holds each one.
     pub fn draw_image(
         &self,
         ctx: &mut Context,
-        scale: f64
+        scale: f64,
+        enemy_location: usize,
+        fleet_location: usize,
     ) {
         ctx.draw(
             &Circle {
@@ -155,8 +160,10 @@ impl SolarSystem {
             ),
         );
 
-        self.planets.iter().for_each(
-            |p| {
+        Self::draw_location_markers(ctx, scale, 0.0, 0.0, 0, enemy_location, fleet_location);
+
+        self.planets.iter().enumerate().for_each(
+            |(i, p)| {
                 let radius_au = (p.get_orbit_radius() / AU_M) as f64;
 
                 ctx.draw(
@@ -186,7 +193,37 @@ impl SolarSystem {
                         Style::default().fg(p.get_menu_color()),
                     ),
                 );
+
+                Self::draw_location_markers(ctx, scale, p_x, p_y, i + 1, enemy_location, fleet_location);
             }
         );
+    }
+
+    fn draw_location_markers(
+        ctx: &mut Context,
+        scale: f64,
+        x: f64,
+        y: f64,
+        body_index: usize,
+        enemy_location: usize,
+        fleet_location: usize,
+    ) {
+        // Single-glyph markers, offset to opposite corners from the body's own name
+        // label (printed at +0.2/+0.2): short strings collide far less often with
+        // other labels when several bodies are packed closely together on screen.
+        if enemy_location == body_index {
+            ctx.print(
+                x - 0.4 * scale,
+                y - 0.4 * scale,
+                Span::styled("\u{2620}", Style::default().fg(Color::LightRed)),
+            );
+        }
+        if fleet_location == body_index {
+            ctx.print(
+                x - 0.4 * scale,
+                y + 0.4 * scale,
+                Span::styled("\u{25C6}", Style::default().fg(Color::LightCyan)),
+            );
+        }
     }
 }

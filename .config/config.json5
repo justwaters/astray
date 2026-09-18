@@ -17,7 +17,13 @@
       "<s>": "StartSelecting",
       "<r>": "MainAction",
       "<f>": "SecondaryAction",
-      "<h>": "Help"
+      "<h>": "Help",
+      // Quick-travel shortcuts for the System View tab, so engaging the enemy or
+      // heading home doesn't require manually paging through the body list first.
+      "<Alt-e>": "EngageEnemy",
+      "<e>": "EngageEnemy",
+      "<Alt-c>": "ReturnToCapital",
+      "<c>": "ReturnToCapital"
     },
     "Help": {
       "<Enter>": "Select",

@@ -91,6 +91,11 @@ pub struct FleetStatus {
     pub colony_max_hp: i32,
     pub colony_under_siege: bool,
     pub enemy_ticks_until_advance: Option<u32>,
+    /// Raw body indices (0 = star, 1..=n = planets), for the System View to jump the
+    /// fleet directly to the enemy or home without manually paging through the list.
+    pub fleet_body_index: usize,
+    pub enemy_body_index: usize,
+    pub capital_body_index: usize,
 }
 
 pub struct GameState {
@@ -516,6 +521,9 @@ impl GameState {
             colony_max_hp: COLONY_MAX_HP,
             colony_under_siege,
             enemy_ticks_until_advance,
+            fleet_body_index: self.fleet_location,
+            enemy_body_index: self.enemy_location,
+            capital_body_index: self.capital_location,
         }
     }
 }

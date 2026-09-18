@@ -83,6 +83,8 @@ pub enum Action {
   DesignShipModule(String /* module type */, String /* module name */),
   BuildShip,
   MoveFleet(usize /* body index */),
+  EngageEnemy,
+  ReturnToCapital,
   Victory,
   Defeat,
 }

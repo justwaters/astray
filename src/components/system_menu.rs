@@ -77,6 +77,12 @@ impl Component for SystemMenu {
                 let selected = self.state.selected().unwrap_or(0);
                 return Ok(Some(Action::MoveFleet(selected)))
             }
+            Action::EngageEnemy => {
+                return Ok(Some(Action::MoveFleet(self.fleet.enemy_body_index)))
+            }
+            Action::ReturnToCapital => {
+                return Ok(Some(Action::MoveFleet(self.fleet.capital_body_index)))
+            }
             Action::SelectNext => {
                 let selected = self.state.selected().unwrap();
                 if selected == (self.list_length - 1) {
@@ -265,6 +271,8 @@ impl Component for SystemMenu {
                     system.draw_image(
                         ctx,
                         self.map_zoom,
+                        self.fleet.enemy_body_index,
+                        self.fleet.fleet_body_index,
                     )
                 }
             });

@@ -30,6 +30,35 @@ key, which would otherwise make the Alt-shortcuts silently do nothing.
 6. Once your fleet reaches the enemy's location, combat resolves automatically each tick — every surviving ship fires at once, stacking damage, while the enemy's counter-fire always hits whichever ship is at the front of the fleet until it's destroyed. Sometimes a second, much tougher escort is guarding alongside the standard enemy — check the Shipyard panel's "Enemy fleet" line before you commit, since it keeps firing even while you're still working through the weaker one. Wipe out every enemy ship to win; if your whole fleet is destroyed first, build more ships and send them back to finish the job
 7. Don't dawdle: if you never engage it, the enemy periodically advances toward your home planet (watch the **Fleet** panel in System View for a countdown) and, once it arrives, sieges your colony each tick until either you intercept it or the colony's HP hits 0 — losing the colony loses the game
 
+## 🕹️ Example first session
+A concrete, literal sequence of keypresses that gets a ship built and fighting from a fresh launch
+(uses the plain-letter keys, which work in every terminal — see above):
+
+1. Dismiss the splash screen: `Enter`
+2. **Research tab** (`Tab` once): research Ion Drive, your first engine
+   - `s`, `Down` (→ Sublight propulsion), `Enter`, `Enter` (→ Ion Drive, first in the list), `r`
+3. Once that finishes, research Ion Cannon, your first weapon
+   - `s`, `Down` ×6 (→ Space Warfare), `Enter`, `Enter` (→ Ion Cannon), `r`
+4. **Colonies tab** (`Tab`): select your colony and queue the buildings a ship needs
+   - `s`, `Enter` — selects your only colony
+   - `r`, `Enter` — queues a Mine (queue 2–3 total for faster, more reliable resource output — mining
+     yields are randomized per-resource, and one mine can leave you waiting a while)
+   - `r`, `Down` ×3, `Enter` — Electronics factory
+   - `r`, `Down` ×5, `Enter` — Heat Resistant Alloy factory
+   - `r`, `Down` ×6, `Enter` — Superconductors factory
+   - `r`, `Down` ×10, `Enter` — Engine Nozzles factory
+   - `r`, `Down` ×11, `Enter` — Microprocessors factory
+   - Wait for **Engine Nozzles** and **Microprocessors** to each reach 5 in the colony's info panel
+5. **Ship modules tab** (`Tab`): design and build your first ship
+   - `s`, `Enter`, `Enter` — confirms the Ion drive engine design
+   - `s`, `Down`, `Enter`, `Enter` — confirms the Ion Cannon weapon design
+   - `r` — builds a ship (press again any time to build more and grow your fleet)
+6. **System View tab** (`Tab`): send your fleet to fight
+   - `e` — sends your fleet straight to the enemy; combat then resolves automatically each tick
+
+If your ship is destroyed before the enemy is, go back to step 5 and build another — the enemy keeps
+whatever damage you've already dealt, so a second ship picks up where the first left off.
+
 ## 🛠️ Installation
 
 ### From source

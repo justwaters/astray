@@ -22,6 +22,10 @@ to reopen it any time. Every Alt-shortcut below also has a plain-letter fallback
 `<h>`), since some terminals — notably macOS Terminal.app by default — don't send Option/Alt as a Meta
 key, which would otherwise make the Alt-shortcuts silently do nothing.
 
+Mouse support: once a list is focused (e.g. after pressing `<Alt-s>`/`<s>`), you can click an item
+directly instead of arrow-keying to it — a click both highlights and confirms the item in one motion,
+the same as arrow-keys followed by `<Enter>`. Mouse and keyboard can be freely mixed at every step.
+
 1. Open the **Research** tab and research an engine (e.g. Ion Drive) and a weapon (e.g. Ion Cannon)
 2. Open the **Colonies** tab to grow your capital colony and queue up mines and factories — a ship needs both Engine Nozzles (via a Heat Resistant Alloy factory chain) and Microprocessors (via a Superconductors + Electronics chain) to build
 3. Once research unlocks a module, open the **Ship modules** tab, select its type, then the module, and press Enter to finalize a design — you need both an engine and a weapon design
@@ -34,12 +38,17 @@ key, which would otherwise make the Alt-shortcuts silently do nothing.
 A concrete, literal sequence of keypresses that gets a ship built and fighting from a fresh launch
 (uses the plain-letter keys, which work in every terminal — see above):
 
+Research and colony construction both tick in the background regardless of which tab you're looking
+at, and multiple research items progress in parallel once started — so queue everything below
+back-to-back rather than waiting for each step to finish before starting the next one:
+
 1. Dismiss the splash screen: `Enter`
-2. **Research tab** (`Tab` once): research Ion Drive, your first engine
+2. **Research tab** (`Tab` once): start both Ion Drive (engine) and Ion Cannon (weapon) right away —
+   they research simultaneously, not one after another
    - `s`, `Down` (→ Sublight propulsion), `Enter`, `Enter` (→ Ion Drive, first in the list), `r`
-3. Once that finishes, research Ion Cannon, your first weapon
    - `s`, `Down` ×6 (→ Space Warfare), `Enter`, `Enter` (→ Ion Cannon), `r`
-4. **Colonies tab** (`Tab`): select your colony and queue the buildings a ship needs
+3. **Colonies tab** (`Tab`): immediately select your colony and queue every building a ship needs —
+   don't wait for research to finish first
    - `s`, `Enter` — selects your only colony
    - `r`, `Enter` — queues a Mine (queue 2–3 total for faster, more reliable resource output — mining
      yields are randomized per-resource, and one mine can leave you waiting a while)
@@ -48,15 +57,17 @@ A concrete, literal sequence of keypresses that gets a ship built and fighting f
    - `r`, `Down` ×6, `Enter` — Superconductors factory
    - `r`, `Down` ×10, `Enter` — Engine Nozzles factory
    - `r`, `Down` ×11, `Enter` — Microprocessors factory
-   - Wait for **Engine Nozzles** and **Microprocessors** to each reach 5 in the colony's info panel
-5. **Ship modules tab** (`Tab`): design and build your first ship
+   - Wait for research to finish and for **Engine Nozzles** and **Microprocessors** to each reach 5 in
+     the colony's info panel — this is the slow part (building construction alone takes a few minutes
+     at the default speed), so this is a good point to explore the other tabs while it runs
+4. **Ship modules tab** (`Tab`): design and build your first ship
    - `s`, `Enter`, `Enter` — confirms the Ion drive engine design
    - `s`, `Down`, `Enter`, `Enter` — confirms the Ion Cannon weapon design
    - `r` — builds a ship (press again any time to build more and grow your fleet)
-6. **System View tab** (`Tab`): send your fleet to fight
+5. **System View tab** (`Tab`): send your fleet to fight
    - `e` — sends your fleet straight to the enemy; combat then resolves automatically each tick
 
-If your ship is destroyed before the enemy is, go back to step 5 and build another — the enemy keeps
+If your ship is destroyed before the enemy is, go back to step 4 and build another — the enemy keeps
 whatever damage you've already dealt, so a second ship picks up where the first left off.
 
 ## 🛠️ Installation

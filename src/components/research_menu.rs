@@ -4,6 +4,7 @@ use ratatui::prelude::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets;
 use ratatui::widgets::{Block, Borders, BorderType, ListDirection, ListState, Paragraph};
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 
 use crate::action::Action;
 use crate::components::Component;
@@ -24,6 +25,10 @@ pub struct ResearchMenu {
     dependency_info: Option<Vec<Vec<(String, bool)>>>,
     research_progress: u32,
     gauge_text: String,
+    /// Rects from the last draw(), used to hit-test mouse clicks. Only meaningful
+    /// while this tab is on screen (app.rs gates raw input dispatch by tab).
+    field_list_area: Rect,
+    research_list_area: Rect,
 }
 
 impl Default for ResearchMenu {
@@ -45,7 +50,9 @@ impl Default for ResearchMenu {
             info: Vec::new(),
             dependency_info: None,
             research_progress: 0,
-            gauge_text: String::from("")
+            gauge_text: String::from(""),
+            field_list_area: Rect::default(),
+            research_list_area: Rect::default(),
         }
     }
 }
@@ -171,10 +178,44 @@ impl Component for ResearchMenu {
             
             _ => {}
         }
-        
+
         Ok(None)
     }
-    
+
+    /// Clicking a list item jumps straight to it and confirms in one motion — the
+    /// mouse equivalent of arrow-keying to it then pressing Enter. Only takes effect
+    /// once the relevant list is already focused (i.e. the player has already pressed
+    /// <Alt-s>/<s> to start selecting), so mouse and keyboard input can be freely mixed
+    /// without the two ever disagreeing about which mode the app is in.
+    fn handle_mouse_events(&mut self, mouse: MouseEvent) -> color_eyre::Result<Option<Action>> {
+        if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
+            return Ok(None)
+        }
+
+        if self.field_list_focused {
+            if let Some(index) = widget_utils::list_item_at_position(
+                self.field_list_area, mouse.column, mouse.row, self.field_list.len()
+            ) {
+                self.field_list_state.select(Some(index));
+                // Return the action itself (rather than calling self.update() directly)
+                // so it also flows through app.rs's central mode-transition match, the
+                // same as a keyboard Enter press does — otherwise app.rs's Mode would
+                // never leave SelectingResearchField and subsequent keybindings would
+                // resolve against the wrong mode.
+                return Ok(Some(Action::ContinueSelecting))
+            }
+        } else if self.research_list_focused {
+            if let Some(index) = widget_utils::list_item_at_position(
+                self.research_list_area, mouse.column, mouse.row, self.research_list.len()
+            ) {
+                self.research_list_state.select(Some(index));
+                return Ok(Some(Action::Select))
+            }
+        }
+
+        Ok(None)
+    }
+
     fn draw(&mut self, f: &mut Frame<'_>, area: Rect) -> color_eyre::Result<()> {
         let v_chunks = Layout::new(
             Direction::Vertical,
@@ -247,6 +288,8 @@ impl Component for ResearchMenu {
             .repeat_highlight_symbol(false)
             .direction(ListDirection::TopToBottom);
 
+        self.field_list_area = chunks[0];
+        self.research_list_area = chunks[1];
         f.render_stateful_widget(fields_list, chunks[0], &mut self.field_list_state);
         f.render_stateful_widget(research_list, chunks[1], &mut self.research_list_state);
 

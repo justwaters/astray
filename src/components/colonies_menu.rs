@@ -3,6 +3,7 @@ use ratatui::prelude::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets;
 use ratatui::widgets::{Block, Borders, BorderType, ListDirection, ListState, Paragraph};
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 
 use crate::action::Action;
 use crate::components::Component;
@@ -47,7 +48,10 @@ pub struct ColoniesMenu {
     buildings_list_state: ListState,
     buildings_list: Vec<(String, u32, Color)>,
     info: Vec<(String, Color)>,
-    construction_info: Vec<(String, u32)>
+    construction_info: Vec<(String, u32)>,
+    /// Rects from the last draw(), used to hit-test mouse clicks.
+    colonies_list_area: Rect,
+    buildings_list_area: Rect,
 }
 
 impl Default for ColoniesMenu {
@@ -64,7 +68,9 @@ impl Default for ColoniesMenu {
             buildings_list_state: ListState::default(),
             buildings_list: vec![(String::from("Select a colony"), 0, Color::Red)],
             info: vec![(String::from("Select a colony"), Color::Red)],
-            construction_info: vec![(String::from("Select a colony"), 0)]
+            construction_info: vec![(String::from("Select a colony"), 0)],
+            colonies_list_area: Rect::default(),
+            buildings_list_area: Rect::default(),
         }
     }
 }
@@ -177,6 +183,38 @@ impl Component for ColoniesMenu {
         }
         Ok(None)
     }
+
+    /// Clicking a colony or building jumps straight to it and confirms in one motion,
+    /// the same as arrow-keying to it then pressing Enter — but only once the relevant
+    /// list is already focused (i.e. <Alt-s>/<s> or <Alt-r>/<r> was already pressed),
+    /// so mouse and keyboard stay interchangeable at every step.
+    fn handle_mouse_events(&mut self, mouse: MouseEvent) -> color_eyre::Result<Option<Action>> {
+        if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
+            return Ok(None)
+        }
+
+        if self.is_focused {
+            if let Some(index) = widget_utils::list_item_at_position(
+                self.colonies_list_area, mouse.column, mouse.row, self.colonies.len()
+            ) {
+                self.list_state.select(Some(index));
+                // Return the action itself (rather than calling self.update() directly)
+                // so it also flows through app.rs's central mode-transition match, the
+                // same as a keyboard Enter press does.
+                return Ok(Some(Action::Select))
+            }
+        } else if self.is_building_focused {
+            if let Some(index) = widget_utils::list_item_at_position(
+                self.buildings_list_area, mouse.column, mouse.row, self.buildings_list.len()
+            ) {
+                self.buildings_list_state.select(Some(index));
+                return Ok(Some(Action::Select))
+            }
+        }
+
+        Ok(None)
+    }
+
     fn draw(&mut self, f: &mut Frame<'_>, area: Rect) -> color_eyre::Result<()> {
         let v_chunks = Layout::new(
             Direction::Vertical,
@@ -278,6 +316,7 @@ impl Component for ColoniesMenu {
             .direction(ListDirection::TopToBottom);
 
 
+        self.buildings_list_area = b_chunks[0];
         f.render_stateful_widget(buildings_list, b_chunks[0], &mut self.buildings_list_state);
 
 
@@ -330,6 +369,7 @@ impl Component for ColoniesMenu {
 
         f.render_widget(construction_list, b_chunks[1]);
 
+        self.colonies_list_area = h_chunks[0];
         f.render_stateful_widget(colonies_list, h_chunks[0], &mut self.list_state);
         f.render_widget(colony_info, p_chunks[0]);
         f.render_widget(help, v_chunks[2]);

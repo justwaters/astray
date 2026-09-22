@@ -3,10 +3,11 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Borders, BorderType, List, ListState, Paragraph};
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 
 use crate::action::Action;
 use crate::components::Component;
-use crate::components::utils::widget_utils::{select_next_in_list, select_prev_in_list};
+use crate::components::utils::widget_utils::{list_item_at_position, select_next_in_list, select_prev_in_list};
 use crate::game::game_state::ShipyardInfo;
 use crate::tabs::Tabs;
 use crate::tui::Frame;
@@ -30,6 +31,9 @@ pub struct ShipModuleDesigner {
     modules_list_state: ListState,
     state: WidgetState,
     shipyard: ShipyardInfo,
+    /// Rects from the last draw(), used to hit-test mouse clicks.
+    types_list_area: Rect,
+    modules_list_area: Rect,
 }
 
 impl Component for ShipModuleDesigner {
@@ -146,6 +150,42 @@ impl Component for ShipModuleDesigner {
 
         Ok(None)
     }
+
+    /// Clicking a type or module jumps straight to it and confirms in one motion, the
+    /// same as arrow-keying to it then pressing Enter — but only once the relevant list
+    /// is already active (i.e. <Alt-s>/<s> was already pressed), so mouse and keyboard
+    /// stay interchangeable at every step.
+    fn handle_mouse_events(&mut self, mouse: MouseEvent) -> color_eyre::Result<Option<Action>> {
+        if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
+            return Ok(None)
+        }
+
+        match self.state {
+            WidgetState::SelectingType => {
+                if let Some(index) = list_item_at_position(
+                    self.types_list_area, mouse.column, mouse.row, self.module_types.len()
+                ) {
+                    self.types_list_state.select(Some(index));
+                    // Return the action itself (rather than calling self.update() directly)
+                    // so it also flows through app.rs's central mode-transition match, the
+                    // same as a keyboard Enter press does.
+                    return Ok(Some(Action::ContinueSelecting))
+                }
+            }
+            WidgetState::SelectingModule => {
+                if let Some(index) = list_item_at_position(
+                    self.modules_list_area, mouse.column, mouse.row, self.modules.len()
+                ) {
+                    self.modules_list_state.select(Some(index));
+                    return Ok(Some(Action::Select))
+                }
+            }
+            WidgetState::Normal => {}
+        }
+
+        Ok(None)
+    }
+
     fn draw(&mut self, f: &mut Frame<'_>, area: Rect) -> color_eyre::Result<()> {
         let v_chunks = Layout::new(
             Direction::Vertical,
@@ -191,6 +231,7 @@ impl Component for ShipModuleDesigner {
             );
 
 
+        self.types_list_area = a_chunks[0];
         f.render_stateful_widget(types_list, a_chunks[0], &mut self.types_list_state);
 
         let modules_list = List::new(
@@ -217,6 +258,7 @@ impl Component for ShipModuleDesigner {
                         }))
             );
 
+        self.modules_list_area = a_chunks[1];
         f.render_stateful_widget(modules_list, a_chunks[1], &mut self.modules_list_state);
 
         let shipyard = &self.shipyard;

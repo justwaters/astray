@@ -106,8 +106,7 @@ impl App {
     action_tx.send(Action::LoadTabs(self.tabs.clone()))?;
 
 
-    let mut tui = tui::Tui::new()?.tick_rate(self.tick_rate).frame_rate(self.frame_rate);
-    // tui.mouse(true);
+    let mut tui = tui::Tui::new()?.tick_rate(self.tick_rate).frame_rate(self.frame_rate).mouse(true);
     tui.enter()?;
 
     for component in self.components.iter_mut() {
@@ -150,7 +149,13 @@ impl App {
           },
           _ => {},
         }
-        for component in self.components.iter_mut() {
+        // Only dispatch raw input to components actually on screen right now. This was
+        // harmless while no component overrode handle_mouse_events/handle_key_events
+        // (the defaults are no-ops), but a hidden component's mouse hit-testing would
+        // otherwise fire on stale Rects left over from the last time it was visible,
+        // since draw() (which refreshes those Rects) is already tab-gated below.
+        for component in self.components.iter_mut()
+            .filter(|c| c.is_drawn_in_tab(&self.tabs[self.cur_tab])) {
           if let Some(action) = component.handle_events(Some(e.clone()))? {
             action_tx.send(action)?;
           }
@@ -381,8 +386,7 @@ impl App {
       if self.should_suspend {
         tui.suspend()?;
         action_tx.send(Action::Resume)?;
-        tui = tui::Tui::new()?.tick_rate(self.tick_rate).frame_rate(self.frame_rate);
-        // tui.mouse(true);
+        tui = tui::Tui::new()?.tick_rate(self.tick_rate).frame_rate(self.frame_rate).mouse(true);
         tui.enter()?;
       } else if self.should_quit {
         tui.stop()?;

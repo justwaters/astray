@@ -113,6 +113,9 @@ impl Component for HelpMenu {
             Line::from("<Alt-e>/<e> engage the enemy   <Alt-c>/<c> return fleet home"),
             Line::from("<Esc> cancel a selection   <q>/<Ctrl-c> quit   <Alt-h>/<h> reopen this screen"),
             Line::from(""),
+            Line::from("Once a list is focused, clicking an item selects and confirms it in one motion —"),
+            Line::from("mouse and keyboard can be freely mixed at every step."),
+            Line::from(""),
             Line::styled(
                 "Press <Enter> or <Esc> to close this screen",
                 Style::default().fg(Color::DarkGray),

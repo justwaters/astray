@@ -4,9 +4,11 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Text};
 use ratatui::widgets::{Block, Borders, BorderType, List, ListDirection, ListState, Paragraph, Row, Table};
 use ratatui::widgets::canvas::Canvas;
+use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 
 use crate::action::Action;
 use crate::components::Component;
+use crate::components::utils::widget_utils::list_item_at_position;
 use crate::game::celestial_bodies::{Displayable, Orbitable};
 use crate::game::celestial_bodies::solar_system::SolarSystem;
 use crate::game::game_state::FleetStatus;
@@ -24,6 +26,8 @@ pub struct SystemMenu {
     map_shift_y: f64,
     map_zoom: f64,
     fleet: FleetStatus,
+    /// Rect from the last draw(), used to hit-test mouse clicks.
+    list_area: Rect,
 }
 
 impl Default for SystemMenu {
@@ -42,6 +46,7 @@ impl Default for SystemMenu {
             map_shift_y: 0.0,
             map_zoom: 1.0,
             fleet: FleetStatus::default(),
+            list_area: Rect::default(),
         }
     }
 }
@@ -139,7 +144,28 @@ impl Component for SystemMenu {
             }
             _ => {}
         }
-        
+
+        Ok(None)
+    }
+
+    /// Clicking a body jumps straight to it and views its properties in one motion, the
+    /// same as arrow-keying to it then pressing Enter — but only once the list is
+    /// already focused (i.e. <Alt-s>/<s> was already pressed), so mouse and keyboard
+    /// stay interchangeable at every step. Use <Alt-r>/<r> afterward to send the fleet
+    /// there, same as with keyboard-only navigation.
+    fn handle_mouse_events(&mut self, mouse: MouseEvent) -> color_eyre::Result<Option<Action>> {
+        if mouse.kind != MouseEventKind::Down(MouseButton::Left) || !self.is_focused {
+            return Ok(None)
+        }
+
+        if let Some(index) = list_item_at_position(self.list_area, mouse.column, mouse.row, self.list_length) {
+            self.state.select(Some(index));
+            // Return the action itself (rather than calling self.update() directly) so
+            // it also flows through app.rs's central mode-transition match, the same as
+            // a keyboard Enter press does.
+            return Ok(Some(Action::Select))
+        }
+
         Ok(None)
     }
 
@@ -335,6 +361,7 @@ impl Component for SystemMenu {
                     .border_type(BorderType::Rounded)
             );
 
+        self.list_area = l_chunks[0];
         f.render_stateful_widget(list, l_chunks[0], &mut self.state);
         f.render_widget(fleet_panel, l_chunks[1]);
         f.render_widget(object_view, s_chunks[1]);

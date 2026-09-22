@@ -59,10 +59,17 @@ pub enum Action {
   // Navigation
   NavigateNextTab,
   NavigatePrevTab,
+  NavigateToTab(usize),
 
   // Form actions
   StartSelecting,
   ContinueSelecting,
+  /// Mouse-only: jump focus straight to a tab's second-level list pane (e.g. Researches,
+  /// Buildings, Modules) regardless of the app's current mode — unlike `ContinueSelecting`,
+  /// which only advances mode when it's already in the matching first-level state, this
+  /// always resolves the correct mode for the current tab so a cold click (skipping the
+  /// first-level pane entirely) still works.
+  FocusSecondaryList,
   SelectNext,
   SelectPrevious,
   Select,

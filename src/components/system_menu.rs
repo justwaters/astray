@@ -26,8 +26,9 @@ pub struct SystemMenu {
     map_shift_y: f64,
     map_zoom: f64,
     fleet: FleetStatus,
-    /// Rect from the last draw(), used to hit-test mouse clicks.
+    /// Rects from the last draw(), used to hit-test mouse clicks.
     list_area: Rect,
+    map_area: Rect,
 }
 
 impl Default for SystemMenu {
@@ -47,6 +48,7 @@ impl Default for SystemMenu {
             map_zoom: 1.0,
             fleet: FleetStatus::default(),
             list_area: Rect::default(),
+            map_area: Rect::default(),
         }
     }
 }
@@ -66,9 +68,11 @@ impl Component for SystemMenu {
             }
             Action::StartSelecting => {
                 self.is_focused = true;
+                self.map_focused = false;
             }
             Action::SecondaryAction => {
                 self.map_focused = true;
+                self.is_focused = false;
                 return Ok(Some(Action::EnterSystemMapNavigation))
             }
             Action::LoadSystemView(system) => {
@@ -149,21 +153,28 @@ impl Component for SystemMenu {
     }
 
     /// Clicking a body jumps straight to it and views its properties in one motion, the
-    /// same as arrow-keying to it then pressing Enter — but only once the list is
-    /// already focused (i.e. <Alt-s>/<s> was already pressed), so mouse and keyboard
-    /// stay interchangeable at every step. Use <Alt-r>/<r> afterward to send the fleet
-    /// there, same as with keyboard-only navigation.
+    /// same as arrow-keying to it then pressing Enter. The list doesn't need to already
+    /// be focused for this to work: clicking an unfocused list focuses it (the mouse
+    /// equivalent of pressing <Alt-s>/<s>) and highlights the clicked body, so a second
+    /// click on it then confirms it. Clicking the map instead enters map navigation, the
+    /// mouse equivalent of <Alt-f>/<f>. Use <Alt-r>/<r> afterward to send the fleet to a
+    /// selected body, same as with keyboard-only navigation.
     fn handle_mouse_events(&mut self, mouse: MouseEvent) -> color_eyre::Result<Option<Action>> {
-        if mouse.kind != MouseEventKind::Down(MouseButton::Left) || !self.is_focused {
+        if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
             return Ok(None)
         }
 
         if let Some(index) = list_item_at_position(self.list_area, mouse.column, mouse.row, self.list_length) {
             self.state.select(Some(index));
-            // Return the action itself (rather than calling self.update() directly) so
-            // it also flows through app.rs's central mode-transition match, the same as
-            // a keyboard Enter press does.
-            return Ok(Some(Action::Select))
+            return Ok(Some(
+                if self.is_focused { Action::Select } else { Action::StartSelecting }
+            ))
+        }
+
+        if !self.map_focused
+            && mouse.column >= self.map_area.x && mouse.column < self.map_area.x + self.map_area.width
+            && mouse.row >= self.map_area.y && mouse.row < self.map_area.y + self.map_area.height {
+            return Ok(Some(Action::SecondaryAction))
         }
 
         Ok(None)
@@ -362,6 +373,7 @@ impl Component for SystemMenu {
             );
 
         self.list_area = l_chunks[0];
+        self.map_area = s_chunks[0];
         f.render_stateful_widget(list, l_chunks[0], &mut self.state);
         f.render_widget(fleet_panel, l_chunks[1]);
         f.render_widget(object_view, s_chunks[1]);

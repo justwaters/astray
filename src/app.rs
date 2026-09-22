@@ -205,6 +205,10 @@ impl App {
               self.cur_tab = self.tabs.len() - 1;
             }
           }
+          Action::NavigateToTab(index) => {
+            self.cur_tab = index;
+            self.mode = Mode::Main;
+          }
           Action::Resize(w, h) => {
             tui.resize(Rect::new(0, 0, w, h))?;
             tui.draw(|f| {
@@ -246,6 +250,18 @@ impl App {
               SelectingResearchField => { Mode::SelectingResearch }
               Mode::SelectingShipModuleType => { Mode::SelectingShipModule }
               _ => { Mode::Main }
+            }
+          }
+          // Unlike ContinueSelecting, this doesn't depend on the current mode already
+          // matching the tab's first-level selection state — it's used when a mouse click
+          // jumps straight to a second-level list pane (e.g. clicking Researches without
+          // having clicked Fields first in this visit).
+          Action::FocusSecondaryList => {
+            self.mode = match self.tabs[self.cur_tab] {
+              Tabs::Research => Mode::SelectingResearch,
+              Tabs::Colonies => Mode::SelectingBuilding,
+              Tabs::ShipModules => Mode::SelectingShipModule,
+              Tabs::SystemView => self.mode,
             }
           }
           Action::Select => {

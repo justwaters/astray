@@ -169,6 +169,14 @@ impl Component for ColoniesMenu {
                 self.buildings_list_state.select(Some(0));
                 self.is_building_focused = true;
             },
+
+            // Mouse-only: a click landed directly on the Buildings pane while it wasn't
+            // already focused — just (re)focus it, keeping the click's already-selected
+            // index intact rather than resetting to 0 like StartSelectingBuilding does.
+            Action::FocusSecondaryList => {
+                self.is_building_focused = true;
+                self.is_focused = false;
+            }
             Action::IngameTick => {
                 if let Some(colony_name) = self.selected_colony.clone() {
                     return Ok(
@@ -184,31 +192,34 @@ impl Component for ColoniesMenu {
         Ok(None)
     }
 
-    /// Clicking a colony or building jumps straight to it and confirms in one motion,
-    /// the same as arrow-keying to it then pressing Enter — but only once the relevant
-    /// list is already focused (i.e. <Alt-s>/<s> or <Alt-r>/<r> was already pressed),
-    /// so mouse and keyboard stay interchangeable at every step.
+    /// Clicking a colony or building jumps straight to it and confirms in one motion, the
+    /// same as arrow-keying to it then pressing Enter. A pane doesn't need to already be
+    /// focused for this to work: clicking an unfocused pane focuses it (the mouse
+    /// equivalent of pressing <Alt-s>/<s> or <Alt-r>/<r>) and highlights the clicked item,
+    /// so a second click on that same item then confirms it — mirroring how a keyboard
+    /// user would arrow-key to it and press Enter after focusing the pane.
     fn handle_mouse_events(&mut self, mouse: MouseEvent) -> color_eyre::Result<Option<Action>> {
         if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
             return Ok(None)
         }
 
-        if self.is_focused {
-            if let Some(index) = widget_utils::list_item_at_position(
-                self.colonies_list_area, mouse.column, mouse.row, self.colonies.len()
-            ) {
-                self.list_state.select(Some(index));
-                // Return the action itself (rather than calling self.update() directly)
-                // so it also flows through app.rs's central mode-transition match, the
-                // same as a keyboard Enter press does.
-                return Ok(Some(Action::Select))
-            }
-        } else if self.is_building_focused {
+        if let Some(index) = widget_utils::list_item_at_position(
+            self.colonies_list_area, mouse.column, mouse.row, self.colonies.len()
+        ) {
+            self.list_state.select(Some(index));
+            return Ok(Some(
+                if self.is_focused { Action::Select } else { Action::StartSelecting }
+            ))
+        }
+
+        if self.selected_colony.is_some() && !self.buildings_list.is_empty() {
             if let Some(index) = widget_utils::list_item_at_position(
                 self.buildings_list_area, mouse.column, mouse.row, self.buildings_list.len()
             ) {
                 self.buildings_list_state.select(Some(index));
-                return Ok(Some(Action::Select))
+                return Ok(Some(
+                    if self.is_building_focused { Action::Select } else { Action::FocusSecondaryList }
+                ))
             }
         }
 

@@ -133,6 +133,15 @@ impl Component for ResearchMenu {
                     )
                 ))
             }
+
+            // Mouse-only: a click landed directly on the Researches pane while it wasn't
+            // already focused (e.g. it still holds data from a previous field visited
+            // earlier in this session) — just (re)focus it, keeping the click's already-
+            // selected index intact rather than resetting to 0 like ContinueSelecting does.
+            Action::FocusSecondaryList => {
+                self.research_list_focused = true;
+                self.field_list_focused = false;
+            }
             
             Action::Select => {
                 self.research_list_focused = false;
@@ -182,34 +191,37 @@ impl Component for ResearchMenu {
         Ok(None)
     }
 
-    /// Clicking a list item jumps straight to it and confirms in one motion — the
-    /// mouse equivalent of arrow-keying to it then pressing Enter. Only takes effect
-    /// once the relevant list is already focused (i.e. the player has already pressed
-    /// <Alt-s>/<s> to start selecting), so mouse and keyboard input can be freely mixed
-    /// without the two ever disagreeing about which mode the app is in.
+    /// Clicking a list item jumps straight to it and confirms in one motion — the mouse
+    /// equivalent of arrow-keying to it then pressing Enter. A pane doesn't need to
+    /// already be focused for this to work: clicking an unfocused pane focuses it (the
+    /// mouse equivalent of pressing <Alt-s>/<s>) and clicking a still-unfocused item both
+    /// focuses the pane and selects that item, so a single click on a fresh screen is
+    /// enough. Either way, the resulting action is returned (rather than calling
+    /// self.update() directly) so it also flows through app.rs's central mode-transition
+    /// match, the same as a keyboard press does — otherwise app.rs's Mode would end up
+    /// out of sync with this component's own focus state.
     fn handle_mouse_events(&mut self, mouse: MouseEvent) -> color_eyre::Result<Option<Action>> {
         if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
             return Ok(None)
         }
 
-        if self.field_list_focused {
-            if let Some(index) = widget_utils::list_item_at_position(
-                self.field_list_area, mouse.column, mouse.row, self.field_list.len()
-            ) {
-                self.field_list_state.select(Some(index));
-                // Return the action itself (rather than calling self.update() directly)
-                // so it also flows through app.rs's central mode-transition match, the
-                // same as a keyboard Enter press does — otherwise app.rs's Mode would
-                // never leave SelectingResearchField and subsequent keybindings would
-                // resolve against the wrong mode.
-                return Ok(Some(Action::ContinueSelecting))
-            }
-        } else if self.research_list_focused {
+        if let Some(index) = widget_utils::list_item_at_position(
+            self.field_list_area, mouse.column, mouse.row, self.field_list.len()
+        ) {
+            self.field_list_state.select(Some(index));
+            return Ok(Some(
+                if self.field_list_focused { Action::ContinueSelecting } else { Action::StartSelecting }
+            ))
+        }
+
+        if !self.research_list.is_empty() {
             if let Some(index) = widget_utils::list_item_at_position(
                 self.research_list_area, mouse.column, mouse.row, self.research_list.len()
             ) {
                 self.research_list_state.select(Some(index));
-                return Ok(Some(Action::Select))
+                return Ok(Some(
+                    if self.research_list_focused { Action::Select } else { Action::FocusSecondaryList }
+                ))
             }
         }
 

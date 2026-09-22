@@ -22,9 +22,11 @@ to reopen it any time. Every Alt-shortcut below also has a plain-letter fallback
 `<h>`), since some terminals — notably macOS Terminal.app by default — don't send Option/Alt as a Meta
 key, which would otherwise make the Alt-shortcuts silently do nothing.
 
-Mouse support: once a list is focused (e.g. after pressing `<Alt-s>`/`<s>`), you can click an item
-directly instead of arrow-keying to it — a click both highlights and confirms the item in one motion,
-the same as arrow-keys followed by `<Enter>`. Mouse and keyboard can be freely mixed at every step.
+Mouse support: click a tab name to switch to it directly. Within a tab, clicking an unfocused list
+pane focuses it and highlights the clicked item — the mouse equivalent of pressing `<Alt-s>`/`<s>` —
+and clicking an already-focused item confirms it, the same as arrow-keys followed by `<Enter>`. On
+the System View tab, clicking the map enters map navigation. Mouse and keyboard can be freely mixed
+at every step.
 
 1. Open the **Research** tab and research an engine (e.g. Ion Drive) and a weapon (e.g. Ion Cannon)
 2. Open the **Colonies** tab to grow your capital colony and queue up mines and factories — a ship needs both Engine Nozzles (via a Heat Resistant Alloy factory chain) and Microprocessors (via a Superconductors + Electronics chain) to build

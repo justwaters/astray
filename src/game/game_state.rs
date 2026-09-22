@@ -29,11 +29,20 @@ const ENEMY_DAMAGE_PER_TICK: i32 = 3;
 const TRAVEL_TICKS_PER_HOP: u32 = 5;
 /// In-game ticks between the enemy advancing one hop toward the capital, while
 /// the player's fleet isn't there to hold it off.
-const ENEMY_ADVANCE_INTERVAL: u32 = 40;
+///
+/// This was originally 40, which — at the default tick rate (1 in-game tick/sec) —
+/// let the enemy reach and fully siege even a distant (5-hop) capital in ~215
+/// ticks/seconds. That's less time than the building queue alone takes to
+/// construct the mine + 5 factories a ship's components require (~425 ticks),
+/// before any research or resource-accumulation time is even counted — so the
+/// colony could fall before the player had a realistic chance to field a ship.
+/// Bumped substantially so a full economy build (realistically ~600-900 ticks)
+/// comfortably fits even for the shortest (1-hop) case.
+const ENEMY_ADVANCE_INTERVAL: u32 = 600;
 /// Hit points of the capital colony. Reaching 0 loses the game.
-const COLONY_MAX_HP: i32 = 30;
+const COLONY_MAX_HP: i32 = 60;
 /// Damage the enemy deals to the colony each tick it besieges it unopposed.
-const COLONY_DAMAGE_PER_TICK: i32 = 2;
+const COLONY_DAMAGE_PER_TICK: i32 = 1;
 /// Hit points of the rare, tougher escort that sometimes accompanies the standard enemy.
 const ELITE_ENEMY_MAX_HP: i32 = 100;
 /// Damage the elite escort deals per tick — more than double the standard enemy's.
